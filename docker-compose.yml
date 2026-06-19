@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    container_name: aeromind-api
+    environment:
+      DATABASE_URL: postgresql+psycopg2://aeromind:aeromind@db:5432/aeromind
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      JWT_SECRET_KEY: local-development-secret
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: aeromind-db
+    environment:
+      POSTGRES_USER: aeromind
+      POSTGRES_PASSWORD: aeromind
+      POSTGRES_DB: aeromind
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aeromind -d aeromind"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
