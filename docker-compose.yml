@@ -2,6 +2,8 @@ services:
   api:
     build: .
     container_name: aeromind-api
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+psycopg2://aeromind:aeromind@db:5432/aeromind
       FLASK_APP: app.py
