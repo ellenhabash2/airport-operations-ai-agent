@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-
+from flask_jwt_extended import jwt_required
 from database import db
 from models.weather_report import WeatherReport
 
@@ -13,6 +13,7 @@ def list_weather_reports():
 
 
 @weather_bp.post("")
+@jwt_required()
 def create_weather_report():
     payload = request.get_json(silent=True) or {}
     required_fields = ["condition", "visibility", "wind_speed", "temperature"]

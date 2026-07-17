@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
 
 from database import db
 from models.incident import Incident
@@ -13,6 +14,7 @@ def list_incidents():
 
 
 @incident_bp.post("")
+@jwt_required()
 def create_incident():
     payload = request.get_json(silent=True) or {}
     required_fields = ["title", "description", "severity", "location"]
