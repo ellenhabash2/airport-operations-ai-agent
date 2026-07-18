@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import BadRequest
 
@@ -54,7 +55,28 @@ def create_app(config_class=Config):
 
     @app.get("/health")
     def health_check():
-        return jsonify({"status": "ok", "service": "AeroMind API"}), 200
+        """
+        Report service health, including database connectivity.
+        """
+        try:
+            db.session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            db.session.rollback()
+            return jsonify(
+                {
+                    "status": "unavailable",
+                    "service": "AeroMind API",
+                    "database": "unreachable",
+                }
+            ), 503
+
+        return jsonify(
+            {
+                "status": "ok",
+                "service": "AeroMind API",
+                "database": "ok",
+            }
+        ), 200
 
     @app.errorhandler(404)
     def not_found(error):
@@ -81,4 +103,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
