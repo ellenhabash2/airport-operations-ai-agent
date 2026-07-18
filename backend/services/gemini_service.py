@@ -2,10 +2,27 @@
 Service for interacting with the Google Gemini API.
 """
 
+from functools import lru_cache
+
 from flask import current_app
 from google import genai
 from google.genai import types
+
 from services.tool_registry import TOOL_SCHEMAS
+
+
+DEFAULT_MODEL = "gemini-3.5-flash"
+
+
+@lru_cache(maxsize=4)
+def _get_client(api_key: str) -> genai.Client:
+    """
+    Return a cached Gemini client for the given API key.
+
+    The client is reused across requests instead of being rebuilt
+    on every incoming call.
+    """
+    return genai.Client(api_key=api_key)
 
 
 class GeminiService:
@@ -14,106 +31,85 @@ class GeminiService:
     def __init__(self) -> None:
         """
         Initialize the Gemini client using Flask configuration.
+
+        Raises:
+            RuntimeError: If GEMINI_API_KEY is not configured.
         """
         api_key = current_app.config.get("GEMINI_API_KEY")
-        model = current_app.config.get(
-            "GEMINI_MODEL",
-            "gemini-3.5-flash",
-        )
 
         if not api_key:
-            raise RuntimeError(
-                "GEMINI_API_KEY is not configured."
-            )
+            raise RuntimeError("GEMINI_API_KEY is not configured.")
 
-        self.client = genai.Client(api_key=api_key)
-        self.model = model
+        self.client = _get_client(api_key)
+        self.model = current_app.config.get("GEMINI_MODEL", DEFAULT_MODEL)
+        self.tools = self._build_tools()
 
+    @staticmethod
+    def _build_tools() -> list[types.Tool]:
+        """
+        Convert TOOL_SCHEMAS into Gemini FunctionDeclarations.
 
-
-
-    def _build_tools(self):
-        """Convert TOOL_SCHEMAS into Gemini FunctionDeclarations."""
-
+        Tools without parameters are declared without a `parameters`
+        field: the Gemini API rejects an OBJECT schema with an empty
+        `properties` map.
+        """
         declarations = []
 
         for name, schema in TOOL_SCHEMAS.items():
-            declarations.append(
-                types.FunctionDeclaration(
-                    name=name,
-                    description=schema["description"],
-                    parameters={
-                        "type": "OBJECT",
-                        "properties": schema["parameters"],
-                        "required": schema.get("required", []),
+            properties = schema.get("parameters") or {}
+
+            declaration = types.FunctionDeclaration(
+                name=name,
+                description=schema["description"],
+            )
+
+            if properties:
+                declaration.parameters = types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        key: types.Schema(**value)
+                        for key, value in properties.items()
                     },
+                    required=schema.get("required", []),
                 )
-            )
 
-        return [
-            types.Tool(
-                function_declarations=declarations
-            )
-        ]
+            declarations.append(declaration)
 
-    def generate_first_response(
-            self,
-            prompt: str,
-    ) -> tuple[types.Content, object]:
+        return [types.Tool(function_declarations=declarations)]
+
+    def generate(
+        self,
+        contents: list[types.Content],
+        system_instruction: str | None = None,
+        use_tools: bool = True,
+    ) -> types.GenerateContentResponse:
         """
-        Send the initial prompt to Gemini with the available tools.
+        Send a conversation to Gemini.
 
         Args:
-            prompt: The user's prompt.
+            contents: Full conversation history sent to the model.
+            system_instruction: System prompt applied to the call.
+            use_tools: Whether the function tools are exposed to the model.
 
         Returns:
-            A tuple containing:
-            - The user Content object.
-            - The raw Gemini response.
+            The raw Gemini response.
 
         Raises:
-            ValueError: If the prompt is empty.
+            ValueError: If the conversation is empty.
         """
+        if not contents:
+            raise ValueError("Conversation cannot be empty.")
 
-        if not prompt or not prompt.strip():
-            raise ValueError("Prompt cannot be empty.")
-
-        user_content = types.Content(
-            role="user",
-            parts=[
-                types.Part.from_text(
-                    text=prompt.strip(),
-                )
-            ],
-        )
-
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=[user_content],
-            config=types.GenerateContentConfig(
-                tools=self._build_tools(),
+        config = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            tools=self.tools if use_tools else None,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                disable=True,
             ),
         )
 
-        return user_content, response
-
-    def generate_final_response(self, contents: list[types.Content],) -> str:
-        """
-        Generate the final response after tool execution.
-
-        Args:
-            conversation: Conversation including tool responses.
-
-        Returns:
-            Final natural-language response.
-        """
-
-        response = self.client.models.generate_content(
+        return self.client.models.generate_content(
             model=self.model,
             contents=contents,
+            config=config,
         )
-
-        return response.text
-
-
-
