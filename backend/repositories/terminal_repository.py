@@ -12,6 +12,13 @@ class TerminalRepository:
     """Repository for terminal database operations."""
 
     @staticmethod
+    def get_all() -> list[Terminal]:
+        """
+        Return all terminals.
+        """
+        return Terminal.query.order_by(Terminal.name.asc()).all()
+
+    @staticmethod
     def get_by_id(terminal_id: int) -> Terminal | None:
         """
         Return a terminal by its ID.

@@ -26,6 +26,7 @@ from services.runway_tools import (
 )
 from services.terminal_tools import (
     get_flights_by_terminal,
+    get_terminal_status,
 )
 from services.weather_tools import (
     get_latest_weather,
@@ -60,6 +61,7 @@ TOOLS = {
 
     # Terminal tools
     "get_flights_by_terminal": get_flights_by_terminal,
+    "get_terminal_status": get_terminal_status,
 }
 
 
@@ -231,6 +233,13 @@ TOOL_SCHEMAS = {
         "required": [
             "terminal_id",
         ],
+    },
+
+    "get_terminal_status": {
+        "description": (
+            "Return every terminal with its capacity and gate availability."
+        ),
+        "parameters": {},
     },
 
     "get_latest_weather": {
