@@ -23,3 +23,8 @@ class RunwayRepository:
     def get_by_runway_code(runway_code: str) -> Runway | None:
         """Return a runway by its runway code."""
         return Runway.query.filter_by(runway_code=runway_code).first()
+
+    @staticmethod
+    def save() -> None:
+        """Persist pending changes."""
+        db.session.commit()

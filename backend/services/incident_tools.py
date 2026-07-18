@@ -1,5 +1,5 @@
 """
-AI tools for querying incidents information.
+AI tools for querying, creating and searching incidents.
 """
 
 from repositories.incident_repository import IncidentRepository
@@ -77,3 +77,15 @@ def create_incident(
 
     return incident.to_dict()
 
+def search_incidents(keyword: str) -> list[dict] | dict:
+    """
+    Search incidents by free text across title, description and location.
+    """
+    keyword = (keyword or "").strip()
+
+    if not keyword:
+        return {"error": "Provide a keyword to search for."}
+
+    incidents = IncidentRepository.search(keyword)
+
+    return [incident.to_dict() for incident in incidents]

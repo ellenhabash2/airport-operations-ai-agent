@@ -28,3 +28,8 @@ class GateRepository:
     def get_available() -> list[Gate]:
         """Return all available gates."""
         return Gate.query.filter_by(status="available").all()
+
+    @staticmethod
+    def save() -> None:
+        """Persist pending changes."""
+        db.session.commit()

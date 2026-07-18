@@ -53,3 +53,25 @@ class IncidentRepository:
         db.session.commit()
 
         return incident
+
+    @staticmethod
+    def search(keyword: str) -> list[Incident]:
+        """
+        Return incidents whose title, description or location matches.
+
+        The keyword is matched case-insensitively anywhere in the field.
+        """
+        pattern = f"%{keyword}%"
+
+        return (
+            Incident.query
+            .filter(
+                db.or_(
+                    Incident.title.ilike(pattern),
+                    Incident.description.ilike(pattern),
+                    Incident.location.ilike(pattern),
+                )
+            )
+            .order_by(Incident.created_at.desc())
+            .all()
+        )
