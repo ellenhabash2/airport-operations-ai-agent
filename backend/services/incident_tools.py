@@ -76,3 +76,4 @@ def create_incident(
     )
 
     return incident.to_dict()
+
