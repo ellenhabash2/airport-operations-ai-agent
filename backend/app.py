@@ -6,6 +6,7 @@ from werkzeug.exceptions import BadRequest
 from config import Config
 from database import db, migrate
 import models  # noqa: F401
+from routes.agent_routes import agent_bp
 from routes.auth_routes import auth_bp
 from routes.flight_routes import flight_bp
 from routes.gate_routes import gate_bp
@@ -24,6 +25,7 @@ def create_app(config_class=Config):
     JWTManager(app)
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(agent_bp, url_prefix="/agent")
     app.register_blueprint(flight_bp, url_prefix="/flights")
     app.register_blueprint(gate_bp, url_prefix="/gates")
     app.register_blueprint(runway_bp, url_prefix="/runways")
@@ -45,6 +47,7 @@ def create_app(config_class=Config):
                     "/runways",
                     "/incidents",
                     "/weather",
+                    "/agent/query",
                 ],
             }
         ), 200
@@ -69,8 +72,6 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def internal_server_error(error):
         return jsonify({"error": "internal server error"}), 500
-
-    # TODO Phase 3: register AI function tools and agent orchestration endpoints here.
 
     return app
 

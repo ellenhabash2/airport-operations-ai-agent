@@ -7,7 +7,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://aeromind:aeromind@db:5432/aeromind
       FLASK_APP: app.py
-      FLASK_ENV: development
+      FLASK_DEBUG: "1"
       JWT_SECRET_KEY: local-development-secret
     ports:
       - "5000:5000"
