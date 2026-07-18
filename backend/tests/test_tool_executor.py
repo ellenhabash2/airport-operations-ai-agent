@@ -84,5 +84,5 @@ def test_terminal_status_reports_gate_availability(app):
     result = ToolExecutor.execute("get_terminal_status")
     terminals = {entry["name"]: entry for entry in result}
 
-    assert terminals["Terminal A"]["available_gates"] == 1
+    assert terminals["Terminal A"]["available_gates"] == 2
     assert terminals["Terminal B"]["available_gates"] == 0

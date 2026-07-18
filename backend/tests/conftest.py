@@ -100,11 +100,16 @@ def _seed_minimal_data():
     gate_free = Gate(
         gate_number="A01", terminal_id=terminal_a.id, status="available"
     )
+    gate_spare = Gate(
+        gate_number="A02", terminal_id=terminal_a.id, status="available"
+    )
     gate_busy = Gate(
         gate_number="B01", terminal_id=terminal_b.id, status="occupied"
     )
     runway = Runway(runway_code="08L/26R", status="available", length=4000)
-    _db.session.add_all([aircraft, gate_free, gate_busy, runway])
+    _db.session.add_all(
+        [aircraft, gate_free, gate_spare, gate_busy, runway]
+    )
     _db.session.commit()
 
     now = datetime.now(timezone.utc)
