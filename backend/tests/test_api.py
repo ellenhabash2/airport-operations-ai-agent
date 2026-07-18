@@ -17,8 +17,7 @@ def test_index_lists_the_agent_endpoint(client):
     """The service index advertises the agent endpoint."""
     response = client.get("/")
 
-    assert "/agent/query" in response.get_json()["endpoints"]
-
+    assert "POST /agent/query" in response.get_json()["endpoints"]
 
 def test_register_and_login(client):
     """A user can register and receive a token."""
@@ -30,6 +29,7 @@ def test_register_and_login(client):
             "password": "password123",
         },
     )
+
     logged_in = client.post(
         "/auth/login",
         json={"email": "ops@example.com", "password": "password123"},
