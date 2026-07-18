@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 
 from database import db
 from models.incident import Incident
+from services.incident_tools import search_incidents
 
 incident_bp = Blueprint("incidents", __name__)
 
@@ -34,3 +35,17 @@ def create_incident():
     db.session.commit()
 
     return jsonify({"data": incident.to_dict()}), 201
+
+
+@incident_bp.get("/search")
+def search_incidents_endpoint():
+    """
+    Search incidents by free text across title, description and location.
+    """
+    keyword = request.args.get("q", "")
+    result = search_incidents(keyword)
+
+    if isinstance(result, dict) and "error" in result:
+        return jsonify(result), 400
+
+    return jsonify({"data": result, "count": len(result)}), 200
