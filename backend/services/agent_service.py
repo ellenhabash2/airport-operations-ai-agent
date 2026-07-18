@@ -2,9 +2,9 @@
 Main AI agent orchestration service.
 """
 
-from services.gemini_service import GeminiService
-
 from google.genai import types
+
+from services.gemini_service import GeminiService
 from services.tool_executor import ToolExecutor
 
 
@@ -19,102 +19,149 @@ Always provide clear, accurate, and professional answers.
 Do not invent or assume information. If the required information is
 not available, clearly say so.
 
-When function tools are available, use them to retrieve airport data
-instead of making assumptions.
+Use the available function tools to retrieve airport data instead of
+making assumptions. When a question requires several pieces of data,
+call the tools one after another until you have everything you need
+before writing the final answer.
 
-If a user's request cannot be fulfilled with the available information
-or tools, explain the limitation politely.
+If a tool returns an error, explain the problem to the user instead of
+guessing the answer.
 """
+
+MAX_TOOL_ITERATIONS = 5
 
 
 class AgentService:
     """Main AI agent service."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the AI agent."""
         self.gemini_service = GeminiService()
 
-
-
-
-    def chat(self, user_message: str) -> dict:
+    def chat(
+        self,
+        user_message: str,
+        history: list[types.Content] | None = None,
+    ) -> dict:
         """
-        Process a user message using Gemini and available function tools.
-        """
+        Process a user message through the agentic loop.
 
+        The loop runs: model -> tool calls -> tool results -> model,
+        repeating until the model answers without requesting more tools
+        or until MAX_TOOL_ITERATIONS is reached.
+
+        Args:
+            user_message: The message sent by the user.
+            history: Optional previous conversation turns.
+
+        Returns:
+            A dictionary with the final answer and the executed tool calls.
+
+        Raises:
+            ValueError: If the user message is empty.
+        """
         if not user_message or not user_message.strip():
             raise ValueError("User message cannot be empty.")
 
-        prompt = f"""
-        {SYSTEM_PROMPT}
-    
-        User:
-        {user_message}
-    
-        Assistant:
-        """
+        contents: list[types.Content] = list(history or [])
+        contents.append(
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=user_message.strip())],
+            )
+        )
 
-        user_content,response = self.gemini_service.generate_first_response(prompt)
+        tool_calls: list[dict] = []
 
-        if response.function_calls:
-            return self._handle_function_call(
-                user_content,
-                response,
+        for _ in range(MAX_TOOL_ITERATIONS):
+            response = self.gemini_service.generate(
+                contents,
+                system_instruction=SYSTEM_PROMPT,
             )
 
+            model_content = self._extract_model_content(response)
+
+            if model_content is not None:
+                contents.append(model_content)
+
+            function_calls = response.function_calls or []
+
+            if not function_calls:
+                return {
+                    "response": response.text,
+                    "tool_calls": tool_calls,
+                    "history": contents,
+                }
+
+            contents.append(
+                self._run_function_calls(function_calls, tool_calls)
+            )
+
+        # The model kept requesting tools: force a final answer without them.
+        final_response = self.gemini_service.generate(
+            contents,
+            system_instruction=SYSTEM_PROMPT,
+            use_tools=False,
+        )
+
         return {
-            "response": response.text,
+            "response": final_response.text,
+            "tool_calls": tool_calls,
+            "history": contents,
+            "truncated": True,
         }
 
-
-
-    def _handle_function_call(
-        self,
-        user_content: types.Content,
-        response,
-    ) -> dict:
+    @staticmethod
+    def _extract_model_content(
+        response: types.GenerateContentResponse,
+    ) -> types.Content | None:
         """
-        Execute a Gemini-requested function call and return the final response.
+        Return the model turn from a Gemini response, if present.
+        """
+        if not response.candidates:
+            return None
+
+        return response.candidates[0].content
+
+    @staticmethod
+    def _run_function_calls(
+        function_calls: list[types.FunctionCall],
+        tool_calls: list[dict],
+    ) -> types.Content:
+        """
+        Execute every function call requested by the model.
+
+        All results are returned in a single Content turn, so parallel
+        function calls are preserved instead of being dropped.
 
         Args:
-            user_content: The original user message as a Content object.
-            response: The initial Gemini response containing the function call.
+            function_calls: Function calls requested by the model.
+            tool_calls: Accumulator recording the executed calls.
 
         Returns:
-            A dictionary containing the final assistant response.
+            A Content object holding the function responses.
         """
+        parts = []
 
-        function_call = response.function_calls[0]
+        for function_call in function_calls:
+            arguments = dict(function_call.args or {})
+            result = ToolExecutor.execute(function_call.name, arguments)
 
-        tool_result = ToolExecutor.execute(
-            function_call.name,
-            **dict(function_call.args),
-        )
+            tool_calls.append(
+                {
+                    "tool": function_call.name,
+                    "arguments": arguments,
+                    "failed": isinstance(result, dict) and "error" in result,
+                }
+            )
 
-        function_response_part = types.Part.from_function_response(
-            name=function_call.name,
-            response={
-                "result": tool_result,
-            },
+            parts.append(
+                types.Part.from_function_response(
+                    name=function_call.name,
+                    response={"result": result},
+                )
+            )
 
-        )
-
-        function_response_content = types.Content(
-            role="tool",
-            parts=[function_response_part],
-        )
-
-        contents = [
-            user_content,
-            response.candidates[0].content,
-            function_response_content,
-        ]
-
-        final_response = self.gemini_service.generate_final_response(
-            contents
-        )
-
-        return {
-            "response": final_response,
-        }
-
+        # Gemini only accepts the roles "user" and "model".
+        # Function results are sent back as a user turn.
+        return types.Content(role="user", parts=parts)
