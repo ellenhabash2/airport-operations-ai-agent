@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from services.agent_service import AgentService
+from services.gemini_service import GeminiUnavailableError
 
 agent_bp = Blueprint("agent", __name__)
 
@@ -29,6 +30,14 @@ def query_agent():
         result = agent.chat(message)
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
+    except GeminiUnavailableError as error:
+        return jsonify(
+            {
+                "error": "ai service unavailable",
+                "message": str(error),
+                "retryable": True,
+            }
+        ), 503
     except Exception as error:  # noqa: BLE001 - upstream model failure
         return jsonify(
             {"error": "agent request failed", "message": str(error)}
