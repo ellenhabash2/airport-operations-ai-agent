@@ -113,6 +113,43 @@ The response holds the answer and the tools the agent executed:
 }
 ```
 
+### Continue a conversation
+
+The response includes a `conversation_id`. Send it back to keep the
+context, so follow-up questions work.
+
+```bash
+curl -X POST http://localhost:5000/agent/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "And which of those are at Terminal B?", "conversation_id": 1}'
+```
+
+Omit `conversation_id` to start a fresh thread.
+
+### List your conversations (JWT)
+
+```bash
+curl http://localhost:5000/agent/conversations \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Read one conversation (JWT)
+
+Returns the thread with its turns in order.
+
+```bash
+curl http://localhost:5000/agent/conversations/1 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Delete a conversation (JWT)
+
+```bash
+curl -X DELETE http://localhost:5000/agent/conversations/1 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ### Multi-step reasoning
 
 This question cannot be answered by a single tool, so the agent chains
@@ -282,9 +319,15 @@ $headers = @{ Authorization = "Bearer $token" }
 Then call any endpoint:
 
 ```powershell
-# Ask the agent
+# Ask the agent and keep the conversation id
 $body = @{ message = "Which flights are delayed?" } | ConvertTo-Json
-Invoke-RestMethod -Uri http://localhost:5000/agent/query -Method Post -ContentType "application/json" -Headers $headers -Body $body | ConvertTo-Json -Depth 5
+$answer = Invoke-RestMethod -Uri http://localhost:5000/agent/query -Method Post -ContentType "application/json" -Headers $headers -Body $body
+$conversationId = $answer.data.conversation_id
+$answer | ConvertTo-Json -Depth 5
+
+# Follow up in the same conversation
+$followUp = @{ message = "And which of those are at Terminal B?"; conversation_id = $conversationId } | ConvertTo-Json
+Invoke-RestMethod -Uri http://localhost:5000/agent/query -Method Post -ContentType "application/json" -Headers $headers -Body $followUp | ConvertTo-Json -Depth 5
 
 # Search flights
 Invoke-RestMethod -Uri "http://localhost:5000/flights/search?status=delayed"

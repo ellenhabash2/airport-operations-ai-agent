@@ -29,7 +29,6 @@ def test_register_and_login(client):
             "password": "password123",
         },
     )
-
     logged_in = client.post(
         "/auth/login",
         json={"email": "ops@example.com", "password": "password123"},
@@ -104,6 +103,7 @@ def test_agent_query_returns_the_answer_and_tool_calls(
                         "failed": False,
                     }
                 ],
+                "history": [],
             }
 
     monkeypatch.setattr(agent_routes, "AgentService", FakeAgent)
