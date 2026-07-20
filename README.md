@@ -195,7 +195,7 @@ curl http://localhost:5000/health
 - `JWT_SECRET_KEY`: secret used to sign JWT access tokens
 - `FLASK_DEBUG`: set to `1` to enable the reloader and debug output
 - `GEMINI_API_KEY`: API key used by the agent, required for `/agent/query`
-- `GEMINI_MODEL`: model name, defaults to `gemini-3.5-flash`
+- `GEMINI_MODEL`: model name, defaults to `gemini-3.1-flash-lite`
 
 Docker Compose provides development defaults for the database and JWT secret,
 but `GEMINI_API_KEY` must come from your own `.env` file.
