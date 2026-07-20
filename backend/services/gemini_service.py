@@ -2,16 +2,27 @@
 Service for interacting with the Google Gemini API.
 """
 
+import time
 from functools import lru_cache
 
 from flask import current_app
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from services.tool_registry import TOOL_SCHEMAS
 
 
 DEFAULT_MODEL = "gemini-3.5-flash"
+
+# Status codes worth retrying: rate limiting and transient server errors.
+TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 1.0
+
+
+class GeminiUnavailableError(RuntimeError):
+    """Raised when Gemini is still unavailable after retrying."""
 
 
 @lru_cache(maxsize=4)
@@ -96,6 +107,8 @@ class GeminiService:
 
         Raises:
             ValueError: If the conversation is empty.
+            GeminiUnavailableError: If Gemini keeps returning a transient
+                error after every attempt.
         """
         if not contents:
             raise ValueError("Conversation cannot be empty.")
@@ -108,8 +121,39 @@ class GeminiService:
             ),
         )
 
-        return self.client.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=config,
-        )
+        return self._generate_with_retry(contents, config)
+
+    def _generate_with_retry(
+        self,
+        contents: list[types.Content],
+        config: types.GenerateContentConfig,
+    ) -> types.GenerateContentResponse:
+        """
+        Call Gemini, retrying transient failures with a growing delay.
+
+        Rate limiting and server overload are common on the free tier and
+        usually clear within seconds, so they are retried instead of being
+        reported to the user as a failed request.
+        """
+        last_error = None
+
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                return self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )
+            except errors.APIError as error:
+                if error.code not in TRANSIENT_STATUS_CODES:
+                    raise
+
+                last_error = error
+
+                if attempt < MAX_ATTEMPTS - 1:
+                    time.sleep(RETRY_BACKOFF_SECONDS * (2 ** attempt))
+
+        raise GeminiUnavailableError(
+            "The AI service is temporarily unavailable. "
+            f"Gemini returned {last_error.code} on {MAX_ATTEMPTS} attempts."
+        ) from last_error

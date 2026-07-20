@@ -200,6 +200,11 @@ curl http://localhost:5000/health
 Docker Compose provides development defaults for the database and JWT secret,
 but `GEMINI_API_KEY` must come from your own `.env` file.
 
+The values in `docker-compose.yml` are development settings only. A real
+deployment must supply its own `JWT_SECRET_KEY`, run with `FLASK_DEBUG`
+unset and serve the app through a production WSGI server rather than the
+Flask development server.
+
 ## Database Setup
 
 Apply the migrations:
@@ -290,6 +295,15 @@ Every write tool validates its input and returns an error payload the model
 can read, so a rejected change is explained to the user instead of surfacing
 as a server error.
 
+### Transient failures
+
+The free Gemini tier returns `429` when rate limited and `503` when the
+model is under load. Both clear within seconds, so the client retries up to
+three times with a growing delay before giving up. If every attempt fails,
+`/agent/query` answers `503` with `"retryable": true` rather than a generic
+server error. Permanent errors, such as a malformed request, are not
+retried.
+
 ## API Endpoints
 
 Authentication:
@@ -318,14 +332,19 @@ Operations:
 | GET | `/gates` | - | List gates |
 | GET | `/runways` | - | List runways |
 | PATCH | `/runways/<id>/status` | JWT | Open or close a runway |
+| GET | `/terminals` | - | List terminals with gate availability |
+| GET | `/terminals/<id>/flights` | - | Flights using a terminal's gates |
 | GET | `/incidents` | - | List incidents |
 | GET | `/incidents/search` | - | Search incidents by free text |
 | POST | `/incidents` | JWT | Create an incident |
 | GET | `/weather` | - | List weather reports |
 | POST | `/weather` | JWT | Create a weather report |
 
-Seventeen endpoints in total. `GET /` lists them all, and `GET /health`
+Nineteen endpoints in total. `GET /` lists them all, and `GET /health`
 reports both service and database status.
+
+Listing endpoints eager-load their related rows, so `GET /flights` runs a
+single query regardless of how many flights are returned.
 
 See [docs/API_TESTS.md](docs/API_TESTS.md) for copy-pasteable requests.
 
