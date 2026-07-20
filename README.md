@@ -11,7 +11,8 @@ The agent exposes 22 function tools and runs a full agentic loop: Gemini
 decides which tools to call, the backend executes them against PostgreSQL,
 the results are fed back, and the loop repeats until Gemini can answer.
 Multi-step reasoning across several tools in a single request is supported,
-and the agent can modify data as well as read it.
+the agent can modify data as well as read it, and conversations are
+remembered so follow-up questions work.
 
 ## Tech Stack
 
@@ -48,9 +49,10 @@ docs/API_TESTS.md
 
 ## Database Schema
 
-Nine tables. Six of them are connected through foreign keys around the
-central `flights` table; `users`, `incidents` and `weather_reports` are
-standalone records that the agent reads and writes.
+Eleven tables in two groups. Six operational tables are connected through
+foreign keys around the central `flights` table. `conversations` and
+`messages` store chat history and hang off `users`. `incidents` and
+`weather_reports` are standalone records the agent reads and writes.
 
 ```mermaid
 erDiagram
@@ -60,6 +62,8 @@ erDiagram
     TERMINALS ||--o{ GATES    : "contains"
     GATES     ||--o{ FLIGHTS  : "serves"
     RUNWAYS   ||--o{ FLIGHTS  : "handles"
+    USERS     ||--o{ CONVERSATIONS : "starts"
+    CONVERSATIONS ||--o{ MESSAGES : "contains"
 
     AIRLINES {
         int id PK
@@ -135,6 +139,23 @@ erDiagram
         string password_hash
         datetime created_at
     }
+
+    CONVERSATIONS {
+        int id PK
+        int user_id FK
+        string title
+        datetime created_at
+        datetime updated_at
+    }
+
+    MESSAGES {
+        int id PK
+        int conversation_id FK
+        string role
+        text text
+        text payload
+        datetime created_at
+    }
 ```
 
 ### Relationships
@@ -147,6 +168,8 @@ erDiagram
 | `terminals` | `gates` | one-to-many | A terminal contains several gates |
 | `gates` | `flights` | one-to-many | A gate serves several flights over time |
 | `runways` | `flights` | one-to-many | A runway handles several flights |
+| `users` | `conversations` | one-to-many | A user starts several chat threads |
+| `conversations` | `messages` | one-to-many | A thread holds the turns of the chat |
 
 Every foreign key on `flights` is `NOT NULL`: a flight cannot exist without
 an airline, an aircraft, a gate and a runway.
@@ -166,6 +189,12 @@ an airline, an aircraft, a gate and a runway.
   Created by staff or by the agent through the `create_incident` tool.
 - **weather_reports** - append only; the agent reads the most recent row.
 - **users** - passwords are stored as salted hashes, never in plain text.
+- **conversations** - one chat thread. `updated_at` moves on every reply,
+  so the list endpoint can show the most recently used thread first.
+- **messages** - one turn. `payload` holds the serialised Gemini content so
+  tool calls and results can be replayed exactly; `text` is the readable
+  part, and is empty for tool turns. Deleting a conversation deletes its
+  messages.
 
 ## Quick Start With Docker
 
@@ -195,7 +224,7 @@ curl http://localhost:5000/health
 - `JWT_SECRET_KEY`: secret used to sign JWT access tokens
 - `FLASK_DEBUG`: set to `1` to enable the reloader and debug output
 - `GEMINI_API_KEY`: API key used by the agent, required for `/agent/query`
-- `GEMINI_MODEL`: model name, defaults to `gemini-3.1-flash-lite`
+- `GEMINI_MODEL`: model name, defaults to `gemini-3.5-flash`
 
 Docker Compose provides development defaults for the database and JWT secret,
 but `GEMINI_API_KEY` must come from your own `.env` file.
@@ -240,6 +269,7 @@ The agent is composed of five services under `backend/services/`:
 | `agent_service.py` | The agentic loop and system prompt |
 | `tool_registry.py` | Maps tool names to functions and JSON schemas |
 | `tool_executor.py` | Executes a tool by name and normalises errors |
+| `memory_service.py` | Stores and replays conversation history |
 | `*_tools.py` | The tools themselves, backed by the repositories |
 
 ### How the loop works
@@ -295,6 +325,23 @@ Every write tool validates its input and returns an error payload the model
 can read, so a rejected change is explained to the user instead of surfacing
 as a server error.
 
+### Conversation memory
+
+Gemini is stateless: every request must carry the whole conversation. Each
+turn is therefore stored and replayed on the next question, so follow-ups
+work:
+
+```text
+"Which flights are delayed?"          -> starts a thread, returns its id
+"And which of those are at Terminal B?" -> same id, the agent knows "those"
+```
+
+Turns are stored as the serialised Gemini content rather than as plain
+text, so tool calls and tool results are replayed exactly as the model
+produced them. Only the most recent thirty turns are replayed, which keeps
+a long thread from growing the prompt without bound. A conversation is
+scoped to the user who started it and cannot be read by anyone else.
+
 ### Transient failures
 
 The free Gemini tier returns `429` when rate limited and `503` when the
@@ -319,6 +366,9 @@ AI agent:
 | Method | Endpoint | Auth | Description |
 | --- | --- | --- | --- |
 | POST | `/agent/query` | JWT | Ask the agent an operations question |
+| GET | `/agent/conversations` | JWT | List your conversations |
+| GET | `/agent/conversations/<id>` | JWT | Read one conversation with its turns |
+| DELETE | `/agent/conversations/<id>` | JWT | Delete a conversation |
 
 Operations:
 
@@ -340,7 +390,7 @@ Operations:
 | GET | `/weather` | - | List weather reports |
 | POST | `/weather` | JWT | Create a weather report |
 
-Nineteen endpoints in total. `GET /` lists them all, and `GET /health`
+Twenty-two endpoints in total. `GET /` lists them all, and `GET /health`
 reports both service and database status.
 
 Listing endpoints eager-load their related rows, so `GET /flights` runs a
@@ -369,7 +419,8 @@ curl -X POST http://localhost:5000/agent/query \
   -d '{"message":"Which flights are delayed and which gates are free?"}'
 ```
 
-The response contains the answer plus the tools the agent executed:
+The response contains the answer, the tools the agent executed, and the id
+of the conversation:
 
 ```json
 {
@@ -378,9 +429,19 @@ The response contains the answer plus the tools the agent executed:
     "tool_calls": [
       {"tool": "find_delayed_flights", "arguments": {}, "failed": false},
       {"tool": "get_available_gates", "arguments": {}, "failed": false}
-    ]
+    ],
+    "conversation_id": 1
   }
 }
+```
+
+Send that id back with the next question to continue the thread:
+
+```bash
+curl -X POST http://localhost:5000/agent/query \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"And which of those are at Terminal B?","conversation_id":1}'
 ```
 
 ## Tests
@@ -398,5 +459,4 @@ with its authentication and error paths.
 
 ## Roadmap
 
-- Conversation memory so the agent can follow up on previous turns
 - React frontend
