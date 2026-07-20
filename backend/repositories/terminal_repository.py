@@ -4,8 +4,8 @@ Database access layer for Terminal entities.
 
 from database import db
 from models.flight import Flight
-from models.gate import Gate
 from models.terminal import Terminal
+from repositories.flight_repository import FlightRepository
 
 
 class TerminalRepository:
@@ -14,7 +14,7 @@ class TerminalRepository:
     @staticmethod
     def get_all() -> list[Terminal]:
         """
-        Return all terminals.
+        Return all terminals ordered by name.
         """
         return Terminal.query.order_by(Terminal.name.asc()).all()
 
@@ -30,9 +30,4 @@ class TerminalRepository:
         """
         Return all flights assigned to the given terminal.
         """
-        return (
-            Flight.query
-            .join(Gate)
-            .filter(Gate.terminal_id == terminal_id)
-            .all()
-        )
+        return FlightRepository.get_by_terminal_id(terminal_id)
