@@ -1,8 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-from database import db
-from models.runway import Runway
+from repositories.runway_repository import RunwayRepository
 from services.runway_tools import update_runway_status
 
 runway_bp = Blueprint("runways", __name__)
@@ -10,7 +9,10 @@ runway_bp = Blueprint("runways", __name__)
 
 @runway_bp.get("")
 def list_runways():
-    runways = Runway.query.order_by(Runway.runway_code.asc()).all()
+    """
+    Return every runway with its current status.
+    """
+    runways = RunwayRepository.get_all()
     return jsonify({"data": [runway.to_dict() for runway in runways]}), 200
 
 
@@ -20,7 +22,7 @@ def update_status(runway_id):
     """
     Open or close a runway and report the flights it affects.
     """
-    runway = db.session.get(Runway, runway_id)
+    runway = RunwayRepository.get_by_id(runway_id)
 
     if runway is None:
         return jsonify({"error": "resource not found"}), 404
