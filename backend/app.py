@@ -13,6 +13,7 @@ from routes.flight_routes import flight_bp
 from routes.gate_routes import gate_bp
 from routes.incident_routes import incident_bp
 from routes.runway_routes import runway_bp
+from routes.terminal_routes import terminal_bp
 from routes.weather_routes import weather_bp
 
 
@@ -30,6 +31,7 @@ def create_app(config_class=Config):
     app.register_blueprint(flight_bp, url_prefix="/flights")
     app.register_blueprint(gate_bp, url_prefix="/gates")
     app.register_blueprint(runway_bp, url_prefix="/runways")
+    app.register_blueprint(terminal_bp, url_prefix="/terminals")
     app.register_blueprint(incident_bp, url_prefix="/incidents")
     app.register_blueprint(weather_bp, url_prefix="/weather")
 
@@ -53,6 +55,8 @@ def create_app(config_class=Config):
                     "GET /gates",
                     "GET /runways",
                     "PATCH /runways/<id>/status",
+                    "GET /terminals",
+                    "GET /terminals/<id>/flights",
                     "GET /incidents",
                     "GET /incidents/search",
                     "POST /incidents",
@@ -107,8 +111,5 @@ def create_app(config_class=Config):
     return app
 
 
-app = create_app()
-
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    create_app().run(host="0.0.0.0", port=5000)

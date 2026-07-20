@@ -1,8 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-from database import db
-from models.flight import Flight
+from repositories.flight_repository import FlightRepository
 from services.flight_tools import (
     assign_flight_to_gate,
     search_flights,
@@ -14,7 +13,10 @@ flight_bp = Blueprint("flights", __name__)
 
 @flight_bp.get("")
 def list_flights():
-    flights = Flight.query.order_by(Flight.departure_time.asc()).all()
+    """
+    Return every flight with its airline, aircraft, gate and runway.
+    """
+    flights = FlightRepository.get_all()
     return jsonify({"data": [flight.to_dict() for flight in flights]}), 200
 
 
@@ -38,7 +40,7 @@ def search_flights_endpoint():
 
 @flight_bp.get("/<int:flight_id>")
 def get_flight(flight_id):
-    flight = db.session.get(Flight, flight_id)
+    flight = FlightRepository.get_by_id(flight_id)
 
     if flight is None:
         return jsonify({"error": "resource not found"}), 404
@@ -52,7 +54,7 @@ def update_status(flight_id):
     """
     Change the operational status of a flight.
     """
-    flight = db.session.get(Flight, flight_id)
+    flight = FlightRepository.get_by_id(flight_id)
 
     if flight is None:
         return jsonify({"error": "resource not found"}), 404
@@ -77,7 +79,7 @@ def reassign_gate(flight_id):
     """
     Move a flight to a different gate.
     """
-    flight = db.session.get(Flight, flight_id)
+    flight = FlightRepository.get_by_id(flight_id)
 
     if flight is None:
         return jsonify({"error": "resource not found"}), 404

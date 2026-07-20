@@ -12,7 +12,7 @@ class RunwayRepository:
     @staticmethod
     def get_all() -> list[Runway]:
         """Return all runways."""
-        return Runway.query.all()
+        return Runway.query.order_by(Runway.runway_code.asc()).all()
 
     @staticmethod
     def get_by_id(runway_id: int) -> Runway | None:
