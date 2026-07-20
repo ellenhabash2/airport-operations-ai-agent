@@ -177,3 +177,39 @@ def test_new_password_works_for_login(client, auth_headers):
     )
 
     assert response.status_code == 200
+
+
+def test_list_terminals(client):
+    """The terminals endpoint reports gate availability per terminal."""
+    response = client.get("/terminals")
+    terminals = {t["name"]: t for t in response.get_json()["data"]}
+
+    assert response.status_code == 200
+    assert terminals["Terminal A"]["available_gates"] == 2
+    assert terminals["Terminal B"]["available_gates"] == 0
+
+
+def test_list_terminal_flights(client):
+    """A terminal reports the flights using its gates."""
+    response = client.get("/terminals/1/flights")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["count"] == 1
+    assert payload["terminal"]["name"] == "Terminal A"
+    assert payload["data"][0]["flight_number"] == "TA1000"
+
+
+def test_flights_of_a_missing_terminal(client):
+    """A terminal that does not exist returns 404."""
+    response = client.get("/terminals/999/flights")
+
+    assert response.status_code == 404
+
+
+def test_index_lists_the_terminal_endpoints(client):
+    """The service index advertises the terminal endpoints."""
+    endpoints = client.get("/").get_json()["endpoints"]
+
+    assert "GET /terminals" in endpoints
+    assert "GET /terminals/<id>/flights" in endpoints
