@@ -309,6 +309,14 @@ repeat until Gemini answers (max 5 iterations)
 Final answer
 ```
 
+### Verified three-tool workflow
+
+The agent test suite verifies a chained request asking where flight `TA1000`
+departs from. The agent first calls `get_flight_by_number`, then
+`get_terminal_status`, and finally `get_flights_by_terminal` before returning
+its answer. This confirms that later tool calls can use context gathered in
+earlier iterations of the same request.
+
 ### Available tools
 
 Twenty-two tools, grouped by what they do.
