@@ -82,6 +82,12 @@ function ToolCallList({ toolCalls }: { toolCalls: ToolCall[] }) {
               {name}: {String(value)}
             </span>
           ))}
+
+          {call.error && (
+            <span className="basis-full pl-5 text-xs text-alert">
+              {call.error}
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -133,6 +139,7 @@ export default function ChatPage() {
           key: `stored-${message.id}`,
           role: message.role === "model" ? "assistant" : "user",
           text: message.text as string,
+          toolCalls: message.tool_calls ?? [],
         }));
 
       setConversationId(id);

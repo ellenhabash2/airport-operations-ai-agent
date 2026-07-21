@@ -82,6 +82,7 @@ export interface ToolCall {
   tool: string;
   arguments: Record<string, unknown>;
   failed: boolean;
+  error?: string;
 }
 
 export interface AgentAnswer {
@@ -102,6 +103,7 @@ export interface StoredMessage {
   id: number;
   role: string;
   text: string | null;
+  tool_calls: ToolCall[];
   created_at: string | null;
 }
 
