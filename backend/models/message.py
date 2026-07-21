@@ -37,6 +37,7 @@ class Message(db.Model):
             "id": self.id,
             "role": self.role,
             "text": self.text,
+            "tool_calls": self.tool_calls or [],
             "created_at": self.created_at.isoformat()
             if self.created_at
             else None,
