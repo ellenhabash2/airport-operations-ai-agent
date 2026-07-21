@@ -24,6 +24,7 @@ remembered so follow-up questions work.
 - Flask-JWT-Extended
 - Docker and Docker Compose
 - Google Gemini API (google-genai)
+- React 19, TypeScript, Vite and Tailwind CSS
 
 ## Project Structure
 
@@ -40,6 +41,10 @@ backend/
 ├── seed/
 ├── tests/
 └── requirements.txt
+frontend/
+├── src/
+├── package.json
+└── vite.config.ts
 docker-compose.yml
 Dockerfile
 .env.example
@@ -204,13 +209,25 @@ Copy the environment file and add your Gemini API key:
 cp .env.example .env
 ```
 
-Build and start the API plus PostgreSQL:
+Build and start the Flask API and PostgreSQL:
 
 ```bash
 docker compose up --build
 ```
 
 The API will be available at `http://localhost:5000`.
+
+Docker Compose does not start the React frontend. In a separate terminal,
+install its dependencies, copy its environment file and start Vite:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`.
 
 Health check:
 
@@ -225,6 +242,8 @@ curl http://localhost:5000/health
 - `FLASK_DEBUG`: set to `1` to enable the reloader and debug output
 - `GEMINI_API_KEY`: API key used by the agent, required for `/agent/query`
 - `GEMINI_MODEL`: model name, defaults to `gemini-3.5-flash`
+- `VITE_API_URL`: backend base URL used by the React frontend; set it in
+  `frontend/.env` (defaults to `http://localhost:5000`)
 
 Docker Compose provides development defaults for the database and JWT secret,
 but `GEMINI_API_KEY` must come from your own `.env` file.
@@ -290,6 +309,14 @@ repeat until Gemini answers (max 5 iterations)
 Final answer
 ```
 
+### Verified three-tool workflow
+
+The agent test suite verifies a chained request asking where flight `TA1000`
+departs from. The agent first calls `get_flight_by_number`, then
+`get_terminal_status`, and finally `get_flights_by_terminal` before returning
+its answer. This confirms that later tool calls can use context gathered in
+earlier iterations of the same request.
+
 ### Available tools
 
 Twenty-two tools, grouped by what they do.
@@ -341,6 +368,24 @@ text, so tool calls and tool results are replayed exactly as the model
 produced them. Only the most recent thirty turns are replayed, which keeps
 a long thread from growing the prompt without bound. A conversation is
 scoped to the user who started it and cannot be read by anyone else.
+
+## React Frontend
+
+The React application in `frontend/` provides the operator-facing interface:
+
+- **Login/Register** - creates an account or signs in and stores the JWT for
+  authenticated requests.
+- **Dashboard** - shows live flight, gate, incident and weather data from the
+  API.
+- **AI Chat** - sends operations questions to the agent and supports follow-up
+  questions in the same thread.
+- **Conversation History** - lists saved threads and lets the user reopen or
+  delete them.
+- **Tool Call Display** - shows the tools, arguments and success or failure
+  status returned with each agent answer.
+
+For more frontend-specific setup and architecture details, see
+[frontend/README.md](frontend/README.md).
 
 ### Transient failures
 
@@ -444,19 +489,15 @@ curl -X POST http://localhost:5000/agent/query \
   -d '{"message":"And which of those are at Terminal B?","conversation_id":1}'
 ```
 
-## Tests
+## Testing
 
 The suite runs against an in-memory SQLite database, so it needs no running
 PostgreSQL:
 
 ```bash
-docker compose exec api python -m pytest -q
+docker compose exec api pytest -q
 ```
 
 It covers the tool executor, the agentic loop (parallel calls, chained calls
 and the iteration limit), the search and update tools, and the HTTP layer
 with its authentication and error paths.
-
-## Roadmap
-
-- React frontend
