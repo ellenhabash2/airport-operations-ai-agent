@@ -6,12 +6,14 @@ const gateStatusStyles: Record<string, string> = {
   available: "border-clear/25 bg-clear/[0.07] text-clear",
   occupied: "border-warning/25 bg-warning/[0.07] text-warning",
   closed: "border-alert/25 bg-alert/[0.07] text-alert",
+  maintenance: "border-alert/25 bg-alert/[0.07] text-alert",
 };
 
 const gateStatusDots: Record<string, string> = {
   available: "bg-clear shadow-[0_0_10px_rgba(36,212,138,0.65)]",
   occupied: "bg-warning shadow-[0_0_10px_rgba(247,169,40,0.65)]",
   closed: "bg-alert shadow-[0_0_10px_rgba(243,79,118,0.65)]",
+  maintenance: "bg-alert shadow-[0_0_10px_rgba(243,79,118,0.65)]",
 };
 
 function capitalise(value: string): string {

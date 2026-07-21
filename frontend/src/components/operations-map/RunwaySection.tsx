@@ -2,8 +2,12 @@ import { Route } from "lucide-react";
 
 import type { Runway } from "../../types/api";
 
-function isClosed(runway: Runway): boolean {
-  return runway.status.toLowerCase() === "closed";
+function isUnavailable(runway: Runway): boolean {
+  return ["closed", "maintenance"].includes(runway.status.toLowerCase());
+}
+
+function capitalise(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export default function RunwaySection({ runways }: { runways: Runway[] }) {
@@ -29,13 +33,13 @@ export default function RunwaySection({ runways }: { runways: Runway[] }) {
       ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {runways.map((runway) => {
-            const closed = isClosed(runway);
+            const unavailable = isUnavailable(runway);
 
             return (
               <article
                 key={runway.id}
                 className={`relative overflow-hidden rounded-2xl border p-5 ${
-                  closed
+                  unavailable
                     ? "border-alert/25 bg-alert/[0.06]"
                     : "border-clear/25 bg-clear/[0.055]"
                 }`}
@@ -52,10 +56,10 @@ export default function RunwaySection({ runways }: { runways: Runway[] }) {
                     <p className="flex items-center justify-end gap-1.5 text-sm font-medium text-white">
                       <span
                         className={`h-2 w-2 rounded-full ${
-                          closed ? "bg-alert" : "bg-clear"
+                          unavailable ? "bg-alert" : "bg-clear"
                         }`}
                       />
-                      {closed ? "Closed" : "Open"}
+                      {unavailable ? capitalise(runway.status) : "Open"}
                     </p>
                     <p className="mt-0.5 font-mono text-xs text-muted">
                       {runway.length.toLocaleString()} m
@@ -63,7 +67,7 @@ export default function RunwaySection({ runways }: { runways: Runway[] }) {
                   </div>
                 </div>
 
-                {closed && runway.closure_reason && (
+                {unavailable && runway.closure_reason && (
                   <p className="relative mt-4 rounded-lg bg-paper/75 px-3 py-2 text-xs text-alert">
                     {runway.closure_reason}
                   </p>
