@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -25,6 +26,16 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     JWTManager(app)
+
+    # The React client runs on a different origin, so browser requests
+    # need explicit CORS permission for the Authorization header.
+    CORS(
+        app,
+        origins=app.config["CORS_ORIGINS"],
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        supports_credentials=False,
+    )
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(agent_bp, url_prefix="/agent")
