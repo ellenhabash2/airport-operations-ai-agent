@@ -489,6 +489,12 @@ curl -X POST http://localhost:5000/agent/query \
   -d '{"message":"And which of those are at Terminal B?","conversation_id":1}'
 ```
 
+When a conversation is reopened with `GET /agent/conversations/<id>`, each
+stored message includes a `tool_calls` array. Assistant answers retain tool
+names, arguments, failure state, and error details so the chat can render the
+same tool history after a reload. Messages from older conversations and turns
+that did not use tools return an empty array.
+
 ## Testing
 
 The suite runs against an in-memory SQLite database, so it needs no running
