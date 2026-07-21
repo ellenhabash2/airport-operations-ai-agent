@@ -1,4 +1,5 @@
 .env
+.env.local
 .venv/
 __pycache__/
 *.py[cod]
@@ -7,3 +8,5 @@ __pycache__/
 instance/
 postgres_data/
 .idea/
+node_modules/
+dist/
