@@ -64,7 +64,11 @@ def query_agent():
             {"error": "agent request failed", "message": str(error)}
         ), 502
 
-    MemoryService.record_turns(conversation, result["history"][len(history):])
+    MemoryService.record_turns(
+        conversation,
+        result["history"][len(history):],
+        tool_calls=result["tool_calls"],
+    )
 
     return jsonify(
         {

@@ -64,6 +64,7 @@ class MemoryService:
     def record_turns(
         conversation: Conversation,
         contents: list[types.Content],
+        tool_calls: list[dict] | None = None,
     ) -> None:
         """
         Persist the turns produced by one exchange.
@@ -72,14 +73,30 @@ class MemoryService:
             conversation: The thread the turns belong to.
             contents: The Gemini content added during this exchange.
         """
-        messages = [
-            Message(
-                role=content.role or "user",
-                text=MemoryService._readable_text(content),
-                payload=content.model_dump_json(exclude_none=True),
-            )
-            for content in contents
+        readable_texts = [
+            MemoryService._readable_text(content) for content in contents
         ]
+        assistant_index = next(
+            (
+                index
+                for index in range(len(contents) - 1, -1, -1)
+                if contents[index].role == "model" and readable_texts[index]
+            ),
+            None,
+        )
+        messages = []
+
+        for index, content in enumerate(contents):
+            messages.append(
+                Message(
+                    role=content.role or "user",
+                    text=readable_texts[index],
+                    payload=content.model_dump_json(exclude_none=True),
+                    tool_calls=list(tool_calls or [])
+                    if index == assistant_index
+                    else None,
+                )
+            )
 
         ConversationRepository.add_messages(conversation, messages)
 
