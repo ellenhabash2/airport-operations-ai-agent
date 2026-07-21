@@ -128,19 +128,12 @@ export default function OperationsMapPage() {
   }, [loadMap]);
 
   const flightsByGate = useMemo(() => {
-    const sortedFlights = [...flights].sort((first, second) => {
-      const firstActive = INACTIVE_FLIGHT_STATUSES.has(first.status) ? 1 : 0;
-      const secondActive = INACTIVE_FLIGHT_STATUSES.has(second.status) ? 1 : 0;
-
-      if (firstActive !== secondActive) {
-        return firstActive - secondActive;
-      }
-
-      return (
+    const sortedFlights = flights
+      .filter((flight) => !INACTIVE_FLIGHT_STATUSES.has(flight.status))
+      .sort((first, second) =>
         new Date(first.departure_time ?? 0).getTime() -
-        new Date(second.departure_time ?? 0).getTime()
+        new Date(second.departure_time ?? 0).getTime(),
       );
-    });
     const assignments = new Map<string, Flight>();
 
     sortedFlights.forEach((flight) => {
@@ -164,7 +157,7 @@ export default function OperationsMapPage() {
     return names.sort((first, second) => first.localeCompare(second));
   }, [gates, terminals]);
 
-  const selectedFlight = selectedGate
+  const selectedFlight = selectedGate?.status === "occupied"
     ? flightsByGate.get(selectedGate.gate_number)
     : undefined;
 

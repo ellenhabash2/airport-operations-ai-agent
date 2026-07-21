@@ -33,6 +33,7 @@ export default function GateDetailsDrawer({
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
 
@@ -47,6 +48,7 @@ export default function GateDetailsDrawer({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
     };
   }, [onClose]);
 
