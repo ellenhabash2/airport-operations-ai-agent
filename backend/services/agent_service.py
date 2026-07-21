@@ -103,6 +103,10 @@ class AgentService:
             system_instruction=SYSTEM_PROMPT,
             use_tools=False,
         )
+        final_content = self._extract_model_content(final_response)
+
+        if final_content is not None:
+            contents.append(final_content)
 
         return {
             "response": final_response.text,
@@ -146,14 +150,18 @@ class AgentService:
         for function_call in function_calls:
             arguments = dict(function_call.args or {})
             result = ToolExecutor.execute(function_call.name, arguments)
+            failed = isinstance(result, dict) and "error" in result
 
-            tool_calls.append(
-                {
-                    "tool": function_call.name,
-                    "arguments": arguments,
-                    "failed": isinstance(result, dict) and "error" in result,
-                }
-            )
+            tool_call = {
+                "tool": function_call.name,
+                "arguments": arguments,
+                "failed": failed,
+            }
+
+            if failed:
+                tool_call["error"] = result["error"]
+
+            tool_calls.append(tool_call)
 
             parts.append(
                 types.Part.from_function_response(

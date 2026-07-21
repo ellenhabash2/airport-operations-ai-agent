@@ -136,12 +136,35 @@ curl http://localhost:5000/agent/conversations \
 
 ### Read one conversation (JWT)
 
-Returns the thread with its turns in order.
+Returns the thread with its turns in order. Assistant messages include the
+tool calls that produced the answer; messages without tools use an empty
+`tool_calls` array.
 
 ```bash
 curl http://localhost:5000/agent/conversations/1 \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+Example assistant message:
+
+```json
+{
+  "id": 2,
+  "role": "model",
+  "text": "Two delayed flights were found.",
+  "tool_calls": [
+    {
+      "tool": "find_delayed_flights",
+      "arguments": {},
+      "failed": false
+    }
+  ],
+  "created_at": "2026-07-21T12:00:00+00:00"
+}
+```
+
+Failed calls set `failed` to `true` and include an `error` string. Tool calls
+remain in execution order when a response uses more than one tool.
 
 ### Delete a conversation (JWT)
 

@@ -163,6 +163,9 @@ def test_failing_tool_is_reported_and_the_loop_continues(app):
     result = agent.chat("Do something impossible")
 
     assert result["tool_calls"][0]["failed"] is True
+    assert result["tool_calls"][0]["error"] == (
+        "Unknown tool: does_not_exist"
+    )
     assert result["response"] == "That tool is unavailable."
 
 
