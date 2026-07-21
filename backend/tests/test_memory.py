@@ -6,6 +6,7 @@ from google.genai import types
 
 import routes.agent_routes as agent_routes
 from models.conversation import Conversation
+from models.message import Message
 from repositories.conversation_repository import ConversationRepository
 from services.memory_service import HISTORY_LIMIT, MemoryService
 
@@ -38,6 +39,17 @@ class RecordingAgent:
             "tool_calls": [],
             "history": turns,
         }
+
+
+class ToolRecordingAgent(RecordingAgent):
+    """Returns configurable tool metadata with a readable answer."""
+
+    tool_calls: list[dict] = []
+
+    def chat(self, message, history=None):
+        result = super().chat(message, history=history)
+        result["tool_calls"] = list(self.tool_calls)
+        return result
 
 
 def _ask(client, headers, message, conversation_id=None):
@@ -216,6 +228,143 @@ def test_a_conversation_returns_its_messages(
     assert response.status_code == 200
     assert [message["role"] for message in messages] == ["user", "model"]
     assert messages[0]["text"] == "Hello"
+
+
+def test_assistant_tool_calls_are_persisted_after_a_query(
+    app, client, auth_headers, monkeypatch
+):
+    """The metadata returned by the agent is stored on its answer."""
+    monkeypatch.setattr(agent_routes, "AgentService", ToolRecordingAgent)
+    ToolRecordingAgent.tool_calls = [
+        {
+            "tool": "get_available_gates",
+            "arguments": {"terminal_id": 1},
+            "failed": False,
+        }
+    ]
+
+    conversation_id = (
+        _ask(client, auth_headers, "Which gates are free?")
+        .get_json()["data"]["conversation_id"]
+    )
+    assistant = ConversationRepository.get_messages(conversation_id)[-1]
+
+    assert assistant.role == "model"
+    assert assistant.tool_calls == ToolRecordingAgent.tool_calls
+
+
+def test_retrieved_tool_calls_preserve_order(
+    client, auth_headers, monkeypatch
+):
+    """History returns every stored call in execution order."""
+    monkeypatch.setattr(agent_routes, "AgentService", ToolRecordingAgent)
+    ToolRecordingAgent.tool_calls = [
+        {"tool": "first_tool", "arguments": {}, "failed": False},
+        {"tool": "second_tool", "arguments": {}, "failed": False},
+        {"tool": "third_tool", "arguments": {}, "failed": False},
+    ]
+    conversation_id = (
+        _ask(client, auth_headers, "Give me a summary")
+        .get_json()["data"]["conversation_id"]
+    )
+
+    response = client.get(
+        f"/agent/conversations/{conversation_id}", headers=auth_headers
+    )
+    assistant = response.get_json()["data"]["messages"][-1]
+
+    assert [call["tool"] for call in assistant["tool_calls"]] == [
+        "first_tool",
+        "second_tool",
+        "third_tool",
+    ]
+
+
+def test_failed_tool_calls_and_errors_are_persisted(
+    app, client, auth_headers, monkeypatch
+):
+    """Failed executions retain both their state and error detail."""
+    monkeypatch.setattr(agent_routes, "AgentService", ToolRecordingAgent)
+    ToolRecordingAgent.tool_calls = [
+        {
+            "tool": "does_not_exist",
+            "arguments": {"flight_id": 7},
+            "failed": True,
+            "error": "Unknown tool: does_not_exist",
+        }
+    ]
+
+    conversation_id = (
+        _ask(client, auth_headers, "Run it")
+        .get_json()["data"]["conversation_id"]
+    )
+    stored = ConversationRepository.get_messages(conversation_id)[-1]
+
+    assert stored.tool_calls[0]["failed"] is True
+    assert stored.tool_calls[0]["error"] == "Unknown tool: does_not_exist"
+
+
+def test_messages_without_tool_calls_return_an_empty_list(
+    client, auth_headers, monkeypatch
+):
+    """Ordinary messages keep the stable array-shaped API contract."""
+    monkeypatch.setattr(agent_routes, "AgentService", RecordingAgent)
+    conversation_id = (
+        _ask(client, auth_headers, "Hello")
+        .get_json()["data"]["conversation_id"]
+    )
+
+    response = client.get(
+        f"/agent/conversations/{conversation_id}", headers=auth_headers
+    )
+
+    assert all(
+        message["tool_calls"] == []
+        for message in response.get_json()["data"]["messages"]
+    )
+
+
+def test_legacy_null_tool_calls_return_an_empty_list(app):
+    """Messages created before the migration remain serializable."""
+    conversation = ConversationRepository.create(user_id=1, title="Legacy")
+    message = Message(
+        role="model",
+        text="Older answer",
+        payload='{"role":"model","parts":[{"text":"Older answer"}]}',
+        tool_calls=None,
+    )
+    ConversationRepository.add_messages(conversation, [message])
+
+    assert message.to_dict()["tool_calls"] == []
+
+
+def test_another_users_persisted_tool_calls_are_not_retrievable(
+    app, client, auth_headers
+):
+    """Ownership checks protect tool metadata with the rest of the thread."""
+    other = ConversationRepository.create(user_id=999, title="Private")
+    ConversationRepository.add_messages(
+        other,
+        [
+            Message(
+                role="model",
+                text="Private answer",
+                payload=(
+                    '{"role":"model","parts":'
+                    '[{"text":"Private answer"}]}'
+                ),
+                tool_calls=[
+                    {"tool": "private_tool", "arguments": {}, "failed": False}
+                ],
+            )
+        ],
+    )
+
+    response = client.get(
+        f"/agent/conversations/{other.id}", headers=auth_headers
+    )
+
+    assert response.status_code == 404
 
 
 def test_a_conversation_can_be_deleted(app, client, auth_headers, monkeypatch):
