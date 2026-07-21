@@ -7,6 +7,7 @@ import {
   DoorOpen,
   Eye,
   LayoutDashboard,
+  Map,
   Plane,
   RefreshCw,
   Wind,
@@ -163,6 +164,14 @@ export default function HomePage() {
               <LayoutDashboard className="h-4 w-4 text-cyan" />
               Overview
             </span>
+
+            <Link
+              to="/operations-map"
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3.5 py-2.5 text-sm text-muted transition-all hover:border-white/5 hover:bg-white/[0.045] hover:text-white"
+            >
+              <Map className="h-4 w-4" />
+              Operations Map
+            </Link>
 
             <Link
               to="/chat"
