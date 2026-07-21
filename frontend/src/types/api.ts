@@ -77,3 +77,39 @@ export interface WeatherReport {
 export interface ListResponse<T> {
   data: T[];
 }
+
+export interface ToolCall {
+  tool: string;
+  arguments: Record<string, unknown>;
+  failed: boolean;
+}
+
+export interface AgentAnswer {
+  answer: string;
+  tool_calls: ToolCall[];
+  conversation_id: number;
+}
+
+export interface ConversationSummary {
+  id: number;
+  title: string;
+  message_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface StoredMessage {
+  id: number;
+  role: string;
+  text: string | null;
+  created_at: string | null;
+}
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: StoredMessage[];
+}
+
+/** Endpoints that return a single object wrap it in a data key. */
+export interface ItemResponse<T> {
+  data: T;
+}
