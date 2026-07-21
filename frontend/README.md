@@ -1,75 +1,102 @@
-# React + TypeScript + Vite
+# AeroMind Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Project Overview
 
-Currently, two official plugins are available:
+The AeroMind frontend is the operator interface for the airport operations
+platform. It provides authenticated access to a live operations dashboard and
+the AI assistant backed by the AeroMind Flask API.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+- React 19 and TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- Lucide React icons
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Installation
 
-## Expanding the ESLint configuration
+From the repository root:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd frontend
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Copy the example frontend environment file:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cp .env.example .env
 ```
+
+`VITE_API_URL` is the base URL of the Flask API. The example and the client
+fallback both use:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+Restart the Vite development server after changing this value.
+
+## Running Locally
+
+Start the Flask API and PostgreSQL from the repository root as described in
+the root README. Then start the frontend separately:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Vite serves the application at `http://localhost:5173` by default.
+
+## Building
+
+Create a production build in `dist/`:
+
+```bash
+cd frontend
+npm run build
+```
+
+To preview that build locally:
+
+```bash
+npm run preview
+```
+
+## Folder Overview
+
+```text
+src/
+├── api/          API client and JWT request handling
+├── components/   Shared route and UI components
+├── context/      Authentication state
+├── pages/        Login, registration, dashboard and chat views
+├── types/        API response types
+├── App.tsx       Application routes
+└── main.tsx      React entry point
+```
+
+## Main Pages
+
+- **Login and Register** (`/login`, `/register`) authenticate users and store
+  the returned JWT in browser local storage.
+- **Dashboard** (`/`) summarizes flights, gates, incidents and the latest
+  weather report. It requires authentication.
+- **AI Chat** (`/chat`) sends questions to the agent, continues or deletes
+  saved conversations, and displays the tools used for each new answer. It
+  requires authentication.
+
+## API Communication
+
+`src/api/client.ts` sends JSON requests to `VITE_API_URL`. When a user is
+signed in, it adds the stored JWT as a Bearer token. The dashboard reads
+`/flights`, `/gates`, `/incidents` and `/weather`; authentication uses
+`/auth/register`, `/auth/login` and `/auth/me`; chat and history use
+`/agent/query` and `/agent/conversations`.
+
+Non-success responses are converted to `ApiError` instances. A `401` response
+clears the stored token so protected pages return the user to login.
