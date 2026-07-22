@@ -1,430 +1,93 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  Bot,
-  Check,
-  MessageSquarePlus,
-  Send,
-  Trash2,
-  Wrench,
-  X,
-} from "lucide-react";
-
+import { ArrowLeft, Bot, Menu, MessageSquarePlus, Send, Trash2, X } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import type {
-  AgentAnswer,
-  ConversationDetail,
-  ConversationSummary,
-  ItemResponse,
-  ListResponse,
-  ToolCall,
-} from "../types/api";
+import MarkdownAnswer from "../components/chat/MarkdownAnswer";
+import StructuredAnswerRenderer from "../components/structured-answers/StructuredAnswerRenderer";
+import ToolExecutionTimeline from "../components/tool-execution/ToolExecutionTimeline";
+import FlightDetailsDrawer from "../components/flight-details/FlightDetailsDrawer";
+import type { AgentAnswer, ConversationDetail, ConversationSummary, Flight, ItemResponse, ListResponse, StructuredPresentation, ToolCall } from "../types/api";
 
-interface ChatTurn {
-  key: string;
-  role: "user" | "assistant";
-  text: string;
-  toolCalls?: ToolCall[];
-}
+interface ChatTurn { key: string; role: "user" | "assistant"; text: string; toolCalls?: ToolCall[]; presentation?: StructuredPresentation | null; createdAt?: string | null; }
 
 const SUGGESTIONS = [
-  "Which flights are delayed right now?",
-  "Are there any available gates in Terminal 1?",
-  "Show me the runways that are closed.",
-  "What is the latest weather report?",
+  "Which flights are currently delayed?", "Show all active incidents.", "Find an available gate.",
+  "What is the status of flight SB2101?", "Which runway is currently closed?", "What is the latest weather report?",
 ];
 
-/** Renders the tools the agent ran to produce an answer. */
-function ToolCallList({ toolCalls }: { toolCalls: ToolCall[] }) {
-  if (toolCalls.length === 0) {
-    return null;
+function friendlyError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "Your session has expired. Please sign in again.";
+    if (error.status === 503) return "The AI service is temporarily unavailable.";
+    if (error.status >= 500 || error.status === 0) return "The request could not be completed.";
+    return error.message;
   }
-
-  return (
-    <div className="mb-3 space-y-1.5">
-      <p className="flex items-center gap-1.5 text-xs text-muted">
-        <Wrench className="h-3 w-3" />
-        {toolCalls.length === 1
-          ? "1 tool used"
-          : `${toolCalls.length} tools used`}
-      </p>
-
-      {toolCalls.map((call, index) => (
-        <div
-          key={`${call.tool}-${index}`}
-          role="status"
-          aria-label={call.failed ? "Tool failed" : "Tool succeeded"}
-          className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
-            call.failed
-              ? "border-alert/25 bg-alert/10"
-              : "border-cyan/20 bg-cyan/[0.06]"
-          }`}
-        >
-          {call.failed ? (
-            <X className="h-3 w-3 shrink-0 text-alert" />
-          ) : (
-            <Check className="h-3 w-3 shrink-0 text-cyan" />
-          )}
-
-          <span
-            className={`font-mono text-xs font-medium ${
-              call.failed ? "text-alert" : "text-cyan"
-            }`}
-          >
-            {call.tool}
-          </span>
-
-          {Object.entries(call.arguments).map(([name, value]) => (
-            <span
-              key={name}
-              className="rounded bg-black/25 px-1.5 py-0.5 font-mono text-xs text-muted-light"
-            >
-              {name}: {String(value)}
-            </span>
-          ))}
-
-          {call.error && (
-            <span className="basis-full pl-5 text-xs text-alert">
-              {call.error}
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  return "The request could not be completed.";
 }
 
 export default function ChatPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState(() => searchParams.get("prompt") ?? "");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const loadConversations = useCallback(async () => {
-    try {
-      const result =
-        await api.get<ListResponse<ConversationSummary>>("/agent/conversations");
-      setConversations(result.data);
-    } catch {
-      // The sidebar is secondary; a failure here should not block chatting.
-    }
+    try { setConversations((await api.get<ListResponse<ConversationSummary>>("/agent/conversations")).data); } catch { /* Secondary navigation remains optional. */ }
   }, []);
+  useEffect(() => { const timer = window.setTimeout(() => void loadConversations(), 0); return () => clearTimeout(timer); }, [loadConversations]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [turns, sending]);
 
-  useEffect(() => {
-    const request = window.setTimeout(() => void loadConversations(), 0);
-    return () => window.clearTimeout(request);
-  }, [loadConversations]);
-
-  useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [turns, sending]);
-
+  function startNewConversation() { setConversationId(null); setTurns([]); setError(null); setSidebarOpen(false); inputRef.current?.focus(); }
   async function openConversation(id: number) {
     setError(null);
-
     try {
-      const result = await api.get<ItemResponse<ConversationDetail>>(
-        `/agent/conversations/${id}`,
-      );
-
-      // Turns with no text are tool calls and tool results, not chat.
-      const restored: ChatTurn[] = result.data.messages
-        .filter((message) => message.text)
-        .map((message) => ({
-          key: `stored-${message.id}`,
-          role: message.role === "model" ? "assistant" : "user",
-          text: message.text as string,
-          toolCalls: message.tool_calls ?? [],
-        }));
-
-      setConversationId(id);
-      setTurns(restored);
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Could not open that conversation.",
-      );
-    }
+      const result = await api.get<ItemResponse<ConversationDetail>>(`/agent/conversations/${id}`);
+      setTurns(result.data.messages.filter((message) => message.text).map((message) => ({ key: `stored-${message.id}`, role: message.role === "model" ? "assistant" : "user", text: message.text as string, toolCalls: message.tool_calls ?? [], presentation: message.presentation, createdAt: message.created_at })));
+      setConversationId(id); setSidebarOpen(false);
+    } catch (caught) { setError(friendlyError(caught)); }
   }
-
   async function deleteConversation(id: number) {
-    try {
-      await api.delete(`/agent/conversations/${id}`);
-      setConversations((current) => current.filter((item) => item.id !== id));
-
-      if (conversationId === id) {
-        startNewConversation();
-      }
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Could not delete that conversation.",
-      );
-    }
+    try { await api.delete(`/agent/conversations/${id}`); setConversations((items) => items.filter((item) => item.id !== id)); if (conversationId === id) startNewConversation(); }
+    catch (caught) { setError(friendlyError(caught)); }
   }
-
-  function startNewConversation() {
-    setConversationId(null);
-    setTurns([]);
-    setError(null);
-  }
-
   async function sendMessage(message: string) {
-    const trimmed = message.trim();
-
-    if (!trimmed || sending) {
-      return;
-    }
-
-    setDraft("");
-    setError(null);
-    setTurns((current) => [
-      ...current,
-      { key: `user-${Date.now()}`, role: "user", text: trimmed },
-    ]);
-    setSending(true);
-
+    const trimmed = message.trim(); if (!trimmed || sending) return;
+    setDraft(""); setError(null); setTurns((items) => [...items, { key: `user-${Date.now()}`, role: "user", text: trimmed }]); setSending(true);
     try {
-      const result = await api.post<ItemResponse<AgentAnswer>>("/agent/query", {
-        message: trimmed,
-        conversation_id: conversationId,
-      });
-
-      setTurns((current) => [
-        ...current,
-        {
-          key: `agent-${Date.now()}`,
-          role: "assistant",
-          text: result.data.answer,
-          toolCalls: result.data.tool_calls,
-        },
-      ]);
-
-      setConversationId(result.data.conversation_id);
-      void loadConversations();
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "The agent did not respond. Try again.",
-      );
-    } finally {
-      setSending(false);
-    }
+      const result = await api.post<ItemResponse<AgentAnswer>>("/agent/query", { message: trimmed, conversation_id: conversationId });
+      setTurns((items) => [...items, { key: `agent-${Date.now()}`, role: "assistant", text: result.data.answer, toolCalls: result.data.tool_calls ?? [], presentation: result.data.presentation }]);
+      setConversationId(result.data.conversation_id); void loadConversations();
+    } catch (caught) { setDraft(trimmed); setError(friendlyError(caught)); }
+    finally { setSending(false); }
   }
 
-  return (
-    <div className="min-h-screen px-3 py-3 sm:px-5 sm:py-5">
-      <div className="glass-panel mx-auto flex h-[calc(100vh-1.5rem)] max-w-[1540px] overflow-hidden rounded-[28px] sm:h-[calc(100vh-2.5rem)]">
-        <aside className="hidden w-[275px] shrink-0 flex-col border-r border-white/10 bg-black/15 lg:flex">
-          <div className="border-b border-white/10 px-4 py-4">
-            <Link
-              to="/"
-              className="mb-4 flex items-center gap-2 text-xs text-muted transition-colors hover:text-white"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to overview
-            </Link>
+  const activeTitle = conversations.find((item) => item.id === conversationId)?.title ?? "New conversation";
+  const sidebar = <aside aria-label="Conversation history" className="flex h-full w-[285px] shrink-0 flex-col border-r border-white/10 bg-surface/95 lg:bg-black/15">
+    <div className="border-b border-white/10 px-4 py-4"><div className="mb-4 flex items-center justify-between"><Link to="/" className="flex items-center gap-2 text-xs text-muted hover:text-white"><ArrowLeft className="h-3.5 w-3.5" />Back to overview</Link><button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="text-muted lg:hidden"><X className="h-5 w-5" /></button></div>
+      <button type="button" onClick={startNewConversation} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-strong via-accent to-cyan py-2.5 text-sm font-semibold text-white"><MessageSquarePlus className="h-4 w-4" />New conversation</button></div>
+    <div className="flex-1 space-y-1 overflow-y-auto px-3 py-4">{conversations.length === 0 ? <p className="px-2 py-6 text-center text-xs text-muted">Your conversations will appear here.</p> : conversations.map((conversation) => <div key={conversation.id} className={`group flex items-center gap-2 rounded-xl border px-3 py-2.5 ${conversationId === conversation.id ? "border-accent/15 bg-accent-strong/20" : "border-transparent hover:bg-white/[0.045]"}`}><button type="button" onClick={() => void openConversation(conversation.id)} className="min-w-0 flex-1 text-left"><p className="truncate text-sm text-white">{conversation.title}</p><p className="mt-0.5 text-xs text-muted">{conversation.message_count} messages</p></button><button type="button" aria-label={`Delete ${conversation.title}`} onClick={() => void deleteConversation(conversation.id)} className="shrink-0 p-1 text-muted hover:text-alert"><Trash2 className="h-3.5 w-3.5" /></button></div>)}</div>
+  </aside>;
 
-            <button
-              type="button"
-              onClick={startNewConversation}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-strong via-accent to-cyan py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(47,128,255,0.25)] transition-all hover:-translate-y-0.5"
-            >
-              <MessageSquarePlus className="h-4 w-4" />
-              New conversation
-            </button>
-          </div>
-
-          <div className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {conversations.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted">
-                Your conversations will appear here.
-              </p>
-            ) : (
-              conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={`group flex items-center gap-2 rounded-xl px-3 py-2.5 transition-all ${
-                    conversationId === conversation.id
-                      ? "border border-accent/15 bg-gradient-to-r from-accent-strong/25 to-violet/10"
-                      : "border border-transparent hover:bg-white/[0.045]"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => void openConversation(conversation.id)}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <p className="truncate text-sm text-white">
-                      {conversation.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {conversation.message_count} messages
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    aria-label={`Delete ${conversation.title}`}
-                    onClick={() => void deleteConversation(conversation.id)}
-                    className="shrink-0 text-muted opacity-0 transition-all hover:text-alert group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent text-white shadow-[0_0_20px_rgba(29,214,245,0.35)]">
-                <Bot className="h-5 w-5" />
-              </span>
-
-              <div>
-                <p className="font-semibold tracking-tight text-white">
-                  AI Assistant
-                </p>
-                <p className="text-xs text-muted">
-                  Ask about flights, gates, runways, incidents and weather
-                </p>
-              </div>
-            </div>
-
-            <Link
-              to="/"
-              className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-medium text-muted transition-all hover:border-cyan/25 hover:text-cyan lg:hidden"
-            >
-              Overview
-            </Link>
-          </header>
-
-          <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-            {turns.length === 0 ? (
-              <div className="mx-auto max-w-2xl py-10 text-center">
-                <h1 className="text-2xl font-bold tracking-[-0.03em] text-white">
-                  What do you need to know, {user?.username}?
-                </h1>
-                <p className="mt-2 text-sm text-muted">
-                  The assistant reads live airport data to answer.
-                </p>
-
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  {SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => void sendMessage(suggestion)}
-                      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left text-sm text-muted-light backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-cyan/20 hover:text-white"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="mx-auto max-w-3xl space-y-5">
-                {turns.map((turn) =>
-                  turn.role === "user" ? (
-                    <div key={turn.key} className="flex justify-end">
-                      <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-r from-accent-strong to-accent px-4 py-3 text-sm text-white shadow-[0_12px_30px_rgba(47,128,255,0.2)]">
-                        {turn.text}
-                      </p>
-                    </div>
-                  ) : (
-                    <div key={turn.key} className="flex gap-3">
-                      <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent text-white">
-                        <Bot className="h-4 w-4" />
-                      </span>
-
-                      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
-                        {turn.toolCalls && (
-                          <ToolCallList toolCalls={turn.toolCalls} />
-                        )}
-
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-muted-light">
-                          {turn.text}
-                        </p>
-                      </div>
-                    </div>
-                  ),
-                )}
-
-                {sending && (
-                  <div className="flex gap-3">
-                    <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent text-white">
-                      <Bot className="h-4 w-4" />
-                    </span>
-
-                    <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] px-4 py-4">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-cyan" />
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-cyan [animation-delay:150ms]" />
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-cyan [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                )}
-
-                <div ref={endOfMessagesRef} />
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-white/10 px-4 py-4 sm:px-6">
-            <div className="mx-auto max-w-3xl">
-              {error && (
-                <p className="mb-3 rounded-xl border border-alert/25 bg-alert/10 px-3.5 py-2.5 text-xs text-alert">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex items-end gap-3">
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void sendMessage(draft);
-                    }
-                  }}
-                  rows={1}
-                  placeholder="Ask about delayed flights, gates or incidents…"
-                  className="max-h-40 min-h-[48px] flex-1 resize-none rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm text-white outline-none transition-all placeholder:text-muted/55 focus:border-cyan/60 focus:shadow-[0_0_0_4px_rgba(29,214,245,0.07)]"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => void sendMessage(draft)}
-                  disabled={sending || draft.trim().length === 0}
-                  aria-label="Send message"
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-accent-strong via-accent to-cyan text-white shadow-[0_12px_30px_rgba(47,128,255,0.25)] transition-all hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-
-              <p className="mt-2 text-center text-xs text-muted">
-                Enter to send, Shift + Enter for a new line
-              </p>
-            </div>
-          </div>
-        </div>
+  return <div className="min-h-screen p-0 sm:px-5 sm:py-5"><div className="glass-panel mx-auto flex h-[100dvh] max-w-[1540px] overflow-hidden sm:h-[calc(100vh-2.5rem)] sm:rounded-[28px]">
+    <div className="hidden lg:block">{sidebar}</div>
+    {sidebarOpen && <div className="fixed inset-0 z-40 lg:hidden"><button aria-label="Close conversations" className="absolute inset-0 bg-black/65" onClick={() => setSidebarOpen(false)} /><div className="relative h-full">{sidebar}</div></div>}
+    <main className="flex min-w-0 flex-1 flex-col">
+      <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4"><div className="flex min-w-0 items-center gap-3"><button type="button" aria-label="Open conversations" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)} className="rounded-lg p-2 text-muted lg:hidden"><Menu className="h-5 w-5" /></button><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent text-white"><Bot className="h-5 w-5" /></span><div className="min-w-0"><h1 className="truncate font-semibold text-white">{activeTitle}</h1><p className="flex items-center gap-1.5 truncate text-xs text-muted"><span className="h-1.5 w-1.5 rounded-full bg-clear" />AeroMind · Ready for operational questions</p></div></div><Link to="/" className="text-xs text-muted hover:text-white lg:hidden">Overview</Link></header>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6">
+        {turns.length === 0 ? <section className="mx-auto max-w-2xl py-5 text-center sm:py-10"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan/10 text-cyan"><Bot className="h-7 w-7" /></span><h2 className="mt-5 text-2xl font-bold text-white">Welcome to AeroMind{user?.username ? `, ${user.username}` : ""}</h2><p className="mx-auto mt-2 max-w-lg text-sm text-muted">Your airport operations assistant for flights, gates, runways, incidents, and weather.</p><div className="mt-7 grid gap-3 sm:grid-cols-2">{SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" onClick={() => { setDraft(suggestion); inputRef.current?.focus(); }} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left text-sm text-muted-light hover:border-cyan/30 hover:text-white">{suggestion}</button>)}</div></section> : <div className="mx-auto max-w-3xl space-y-6">{turns.map((turn) => turn.role === "user" ? <article key={turn.key} aria-label="You" className="flex justify-end"><p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-gradient-to-r from-accent-strong to-accent px-4 py-3 text-sm text-white sm:max-w-[75%]">{turn.text}</p></article> : <article key={turn.key} aria-label="AeroMind" className="flex min-w-0 gap-3"><span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent"><Bot className="h-4 w-4" /></span><div className="min-w-0 flex-1 space-y-4"><ToolExecutionTimeline toolCalls={turn.toolCalls} /><MarkdownAnswer>{turn.text}</MarkdownAnswer><StructuredAnswerRenderer presentation={turn.presentation} onOpenFlight={setSelectedFlight} onPrompt={(prompt) => { setDraft(prompt); inputRef.current?.focus(); }} /></div></article>)}
+          {sending && <div role="status" aria-live="polite" className="flex gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-accent"><Bot className="h-4 w-4" /></span><div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"><p className="text-sm text-muted-light">AeroMind is analyzing airport operations…</p><p className="mt-1 text-xs text-muted">Preparing response</p></div></div>}<div ref={endRef} /></div>}
       </div>
-    </div>
-  );
+      <footer className="border-t border-white/10 bg-surface/70 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4"><div className="mx-auto max-w-3xl">{error && <p role="alert" className="mb-3 rounded-xl border border-alert/25 bg-alert/10 px-3.5 py-2.5 text-sm text-alert">{error}</p>}<label htmlFor="chat-message" className="sr-only">Message AeroMind</label><div className="flex items-end gap-3"><textarea id="chat-message" ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(draft); } }} rows={1} placeholder="Ask about delayed flights, gates or incidents…" className="max-h-40 min-h-12 min-w-0 flex-1 resize-none rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm text-white outline-none placeholder:text-muted/55 focus:border-cyan/60" /><button type="button" onClick={() => void sendMessage(draft)} disabled={sending || !draft.trim()} aria-label="Send message" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-accent-strong via-accent to-cyan text-white disabled:opacity-40"><Send className="h-4 w-4" /></button></div><p className="mt-2 text-center text-xs text-muted">AeroMind can inspect flights, gates, runways, incidents, and weather. Enter to send · Shift+Enter for a new line.</p></div></footer>
+    </main>
+    {selectedFlight && <FlightDetailsDrawer flightId={selectedFlight.id} initialFlight={selectedFlight} onClose={() => setSelectedFlight(null)} />}
+  </div></div>;
 }

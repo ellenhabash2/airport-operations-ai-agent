@@ -107,12 +107,19 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
   failed: boolean;
   error?: string;
+  result?: unknown;
+}
+
+export interface StructuredPresentation {
+  type: string;
+  data: Record<string, unknown>;
 }
 
 export interface AgentAnswer {
   answer: string;
   tool_calls: ToolCall[];
   conversation_id: number;
+  presentation?: StructuredPresentation | null;
 }
 
 export interface ConversationSummary {
@@ -129,6 +136,7 @@ export interface StoredMessage {
   text: string | null;
   tool_calls: ToolCall[];
   created_at: string | null;
+  presentation?: StructuredPresentation | null;
 }
 
 export interface ConversationDetail extends ConversationSummary {
