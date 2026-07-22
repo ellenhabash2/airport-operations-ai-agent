@@ -2,8 +2,12 @@
 Service for executing AI function tools by name.
 """
 
+import logging
+
 from database import db
 from services.tool_registry import TOOLS, TOOL_SCHEMAS
+
+logger = logging.getLogger(__name__)
 
 
 class ToolExecutor:
@@ -38,11 +42,10 @@ class ToolExecutor:
             return {
                 "error": f"Invalid arguments for '{tool_name}': {error}"
             }
-        except Exception as error:  # noqa: BLE001 - reported back to the model
+        except Exception:  # noqa: BLE001 - isolate tool failures
             db.session.rollback()
-            return {
-                "error": f"Tool '{tool_name}' failed: {error}"
-            }
+            logger.exception("Tool execution failed: %s", tool_name)
+            return {"error": f"Tool '{tool_name}' could not be completed."}
 
     @staticmethod
     def _coerce_arguments(tool_name: str, arguments: dict) -> dict:

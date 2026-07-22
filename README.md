@@ -159,6 +159,8 @@ erDiagram
         string role
         text text
         text payload
+        json tool_calls
+        json presentation
         datetime created_at
     }
 ```
@@ -198,8 +200,9 @@ an airline, an aircraft, a gate and a runway.
   so the list endpoint can show the most recently used thread first.
 - **messages** - one turn. `payload` holds the serialised Gemini content so
   tool calls and results can be replayed exactly; `text` is the readable
-  part, and is empty for tool turns. Deleting a conversation deletes its
-  messages.
+  part, `tool_calls` contains sanitized visible execution metadata, and
+  `presentation` contains optional structured-card data. Text is empty for
+  tool-only turns. Deleting a conversation deletes its messages.
 
 ## Quick Start With Docker
 
@@ -383,6 +386,8 @@ The React application in `frontend/` provides the operator-facing interface:
   delete them.
 - **Tool Call Display** - shows the tools, arguments and success or failure
   status returned with each agent answer.
+- **Structured Answers** - renders flight, flight-list, gate-assignment and
+  runway cards from verified tool results rather than parsing model prose.
 
 For more frontend-specific setup and architecture details, see
 [frontend/README.md](frontend/README.md).
@@ -464,17 +469,17 @@ curl -X POST http://localhost:5000/agent/query \
   -d '{"message":"Which flights are delayed and which gates are free?"}'
 ```
 
-The response contains the answer, the tools the agent executed, and the id
-of the conversation:
+The response contains the answer, sanitized visible tool metadata, optional
+structured presentation data derived from tool results, and the conversation id:
 
 ```json
 {
   "data": {
     "answer": "...",
     "tool_calls": [
-      {"tool": "find_delayed_flights", "arguments": {}, "failed": false},
-      {"tool": "get_available_gates", "arguments": {}, "failed": false}
+      {"tool": "find_delayed_flights", "arguments": {}, "failed": false}
     ],
+    "presentation": {"type": "flight_list", "data": {"flights": []}},
     "conversation_id": 1
   }
 }
@@ -492,8 +497,10 @@ curl -X POST http://localhost:5000/agent/query \
 When a conversation is reopened with `GET /agent/conversations/<id>`, each
 stored message includes a `tool_calls` array. Assistant answers retain tool
 names, arguments, failure state, and error details so the chat can render the
-same tool history after a reload. Messages from older conversations and turns
-that did not use tools return an empty array.
+same tool history and structured card after a reload. Internal tool-result
+payloads are not exposed in `tool_calls`. Messages from older conversations
+and turns that did not use tools return an empty array, and missing presentation
+metadata remains `null`.
 
 ## Testing
 
@@ -507,3 +514,6 @@ docker compose exec api pytest -q
 It covers the tool executor, the agentic loop (parallel calls, chained calls
 and the iteration limit), the search and update tools, and the HTTP layer
 with its authentication and error paths.
+
+Verified on 22 July 2026: **97 backend tests** and **35 frontend tests** pass;
+frontend lint and production build also pass.

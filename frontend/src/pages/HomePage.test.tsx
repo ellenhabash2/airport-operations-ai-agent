@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError } from "../api/client";
@@ -46,7 +46,9 @@ describe("HomePage dashboard states", () => {
 
     const availableCard = (await screen.findByText("Available gates")).closest("article");
     expect(availableCard).not.toBeNull();
-    expect(within(availableCard as HTMLElement).getByText("1")).toBeVisible();
+    await waitFor(() =>
+      expect(within(availableCard as HTMLElement).getByText("1")).toBeVisible(),
+    );
     expect(screen.getByText("PW2018")).toBeVisible();
     expect(screen.getByText("Partly cloudy")).toBeVisible();
     expect(screen.getByText(mockIncident.title)).toBeVisible();

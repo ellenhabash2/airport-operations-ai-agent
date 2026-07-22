@@ -18,6 +18,9 @@ def register():
     if not username or not email or not password:
         return jsonify({"error": "username, email, and password are required"}), 400
 
+    if len(password) < 8:
+        return jsonify({"error": "password must be at least 8 characters"}), 400
+
     existing_user = User.query.filter(
         or_(User.username == username, User.email == email)
     ).first()

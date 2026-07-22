@@ -1,3 +1,5 @@
+import math
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
@@ -32,11 +34,29 @@ def create_weather_report():
             {"error": "missing required fields", "fields": missing_fields}
         ), 400
 
+    condition = str(payload["condition"]).strip()
+    if not condition:
+        return jsonify({"error": "condition is required"}), 400
+
+    try:
+        visibility = float(payload["visibility"])
+        wind_speed = float(payload["wind_speed"])
+        temperature = float(payload["temperature"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "weather measurements must be numeric"}), 400
+
+    measurements = (visibility, wind_speed, temperature)
+    if not all(math.isfinite(value) for value in measurements):
+        return jsonify({"error": "weather measurements must be finite"}), 400
+
+    if visibility < 0 or wind_speed < 0:
+        return jsonify({"error": "visibility and wind_speed cannot be negative"}), 400
+
     report = WeatherRepository.create(
-        condition=payload["condition"],
-        visibility=payload["visibility"],
-        wind_speed=payload["wind_speed"],
-        temperature=payload["temperature"],
+        condition=condition,
+        visibility=visibility,
+        wind_speed=wind_speed,
+        temperature=temperature,
     )
 
     return jsonify({"data": report.to_dict()}), 201

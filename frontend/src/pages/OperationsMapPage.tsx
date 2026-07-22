@@ -194,7 +194,7 @@ export default function OperationsMapPage() {
               </span>
               <div>
                 <p className="font-semibold text-white">Airport Operations Map</p>
-                <p className="text-xs text-muted">Live airside layout</p>
+                <p className="text-xs text-muted">Operational airside layout</p>
               </div>
             </div>
 
@@ -235,7 +235,7 @@ export default function OperationsMapPage() {
               Airport Operations Map
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              A live visual overview of terminal gates, assigned flights, and
+              A visual overview of terminal gates, assigned flights, and
               runway availability.
             </p>
           </section>
