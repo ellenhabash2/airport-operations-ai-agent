@@ -6,8 +6,9 @@ import {
   Map as MapIcon,
   RefreshCw,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
+import FlightDetailsDrawer from "../components/flight-details/FlightDetailsDrawer";
 import GateDetailsDrawer from "../components/operations-map/GateDetailsDrawer";
 import TerminalSection from "../components/operations-map/TerminalSection";
 import AirportLegend from "../components/operations-map/AirportLegend";
@@ -68,11 +69,15 @@ function ResourceWarning({ resource, message }: { resource: string; message: str
 }
 
 export default function OperationsMapPage() {
+  const [searchParams] = useSearchParams();
   const [flights, setFlights] = useState<Flight[]>([]);
   const [gates, setGates] = useState<Gate[]>([]);
   const [runways, setRunways] = useState<Runway[]>([]);
   const [terminals, setTerminals] = useState<Terminal[]>([]);
   const [selectedGate, setSelectedGate] = useState<Gate | null>(null);
+  const [selectedFlightDetails, setSelectedFlightDetails] = useState<Flight | null>(
+    null,
+  );
   const [errors, setErrors] = useState<ResourceErrors>({});
   const [loading, setLoading] = useState(true);
 
@@ -126,6 +131,23 @@ export default function OperationsMapPage() {
 
     return () => window.clearTimeout(request);
   }, [loadMap]);
+
+  useEffect(() => {
+    const gateNumber = searchParams.get("gate");
+
+    if (!gateNumber || gates.length === 0) {
+      return;
+    }
+
+    const request = window.setTimeout(() => {
+      const matchingGate = gates.find((gate) => gate.gate_number === gateNumber);
+      if (matchingGate) {
+        setSelectedGate(matchingGate);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(request);
+  }, [gates, searchParams]);
 
   const flightsByGate = useMemo(() => {
     const sortedFlights = flights
@@ -292,6 +314,18 @@ export default function OperationsMapPage() {
           gate={selectedGate}
           flight={selectedFlight}
           onClose={() => setSelectedGate(null)}
+          onSelectFlight={(flight) => {
+            setSelectedGate(null);
+            setSelectedFlightDetails(flight);
+          }}
+        />
+      )}
+
+      {selectedFlightDetails && (
+        <FlightDetailsDrawer
+          flightId={selectedFlightDetails.id}
+          initialFlight={selectedFlightDetails}
+          onClose={() => setSelectedFlightDetails(null)}
         />
       )}
     </div>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { api, ApiError } from "../api/client";
+import FlightDetailsDrawer from "../components/flight-details/FlightDetailsDrawer";
 import { useAuth } from "../context/AuthContext";
 import type {
   Flight,
@@ -57,6 +58,7 @@ export default function HomePage() {
   const [gates, setGates] = useState<Gate[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [weather, setWeather] = useState<WeatherReport | null>(null);
+  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -361,7 +363,17 @@ export default function HomePage() {
                         {flights.slice(0, 8).map((flight) => (
                           <tr
                             key={flight.id}
-                            className="border-b border-white/[0.055] text-sm transition-colors last:border-0 hover:bg-white/[0.025]"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`View details for flight ${flight.flight_number}`}
+                            onClick={() => setSelectedFlight(flight)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedFlight(flight);
+                              }
+                            }}
+                            className="cursor-pointer border-b border-white/[0.055] text-sm transition-colors last:border-0 hover:bg-white/[0.04] focus-visible:outline-offset-[-3px]"
                           >
                             <td className="px-5 py-4 font-mono font-semibold text-white">
                               {flight.flight_number}
@@ -489,6 +501,14 @@ export default function HomePage() {
           </main>
         </div>
       </div>
+
+      {selectedFlight && (
+        <FlightDetailsDrawer
+          flightId={selectedFlight.id}
+          initialFlight={selectedFlight}
+          onClose={() => setSelectedFlight(null)}
+        />
+      )}
     </div>
   );
 }

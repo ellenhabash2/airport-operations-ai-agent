@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Bot,
@@ -96,11 +96,12 @@ function ToolCallList({ toolCalls }: { toolCalls: ToolCall[] }) {
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => searchParams.get("prompt") ?? "");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
