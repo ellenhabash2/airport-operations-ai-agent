@@ -18,8 +18,17 @@ const getMock = vi.mocked(api.get);
 const postMock = vi.mocked(api.post);
 
 function conversationList(): ListResponse<ConversationSummary> {
-  const { messages: _messages, ...summary } = mockConversation;
-  return { data: [summary] };
+  return {
+    data: [
+      {
+        id: mockConversation.id,
+        title: mockConversation.title,
+        message_count: mockConversation.message_count,
+        created_at: mockConversation.created_at,
+        updated_at: mockConversation.updated_at,
+      },
+    ],
+  };
 }
 
 function answer(
