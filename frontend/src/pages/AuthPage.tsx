@@ -204,11 +204,12 @@ export default function AuthPage({ mode }: AuthPageProps) {
               onSubmit={handleSubmit}
               className="rounded-[26px] border border-white/10 bg-black/15 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.32)] backdrop-blur-2xl sm:p-8"
             >
-              <label className="label mb-2 block">
+              <label htmlFor="auth-identifier" className="label mb-2 block">
                 {isRegister ? "Username" : "Username or email"}
               </label>
 
               <input
+                id="auth-identifier"
                 value={identifier}
                 onChange={(event) =>
                   setIdentifier(event.target.value)
@@ -225,11 +226,12 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
               {isRegister && (
                 <>
-                  <label className="label mb-2 block">
+                  <label htmlFor="auth-email" className="label mb-2 block">
                     Email address
                   </label>
 
                   <input
+                    id="auth-email"
                     type="email"
                     value={email}
                     onChange={(event) =>
@@ -243,11 +245,12 @@ export default function AuthPage({ mode }: AuthPageProps) {
                 </>
               )}
 
-              <label className="label mb-2 block">
+              <label htmlFor="auth-password" className="label mb-2 block">
                 Password
               </label>
 
               <input
+                id="auth-password"
                 type="password"
                 value={password}
                 onChange={(event) =>
