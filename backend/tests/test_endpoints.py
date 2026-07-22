@@ -213,3 +213,34 @@ def test_index_lists_the_terminal_endpoints(client):
 
     assert "GET /terminals" in endpoints
     assert "GET /terminals/<id>/flights" in endpoints
+
+
+def test_create_weather_rejects_non_numeric_measurements(client, auth_headers):
+    response = client.post(
+        "/weather",
+        json={
+            "condition": "clear",
+            "visibility": "far",
+            "wind_speed": 10,
+            "temperature": 20,
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "weather measurements must be numeric"
+
+
+def test_create_weather_rejects_negative_visibility(client, auth_headers):
+    response = client.post(
+        "/weather",
+        json={
+            "condition": "clear",
+            "visibility": -1,
+            "wind_speed": 10,
+            "temperature": 20,
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400

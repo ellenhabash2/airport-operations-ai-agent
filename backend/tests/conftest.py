@@ -30,7 +30,7 @@ class TestConfig(Config):
 
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite://"
-    JWT_SECRET_KEY = "test-secret"
+    JWT_SECRET_KEY = "test-only-jwt-secret-at-least-32-bytes-long"
     GEMINI_API_KEY = "test-key"
 
 

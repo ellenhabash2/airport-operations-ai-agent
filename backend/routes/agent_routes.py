@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -8,6 +10,15 @@ from services.memory_service import MemoryService
 from services.presentation_service import PresentationService
 
 agent_bp = Blueprint("agent", __name__)
+logger = logging.getLogger(__name__)
+
+
+def _public_tool_calls(tool_calls):
+    """Remove internal tool results before persistence and API exposure."""
+    return [
+        {key: value for key, value in call.items() if key != "result"}
+        for call in (tool_calls or [])
+    ]
 
 
 @agent_bp.post("/query")
@@ -27,49 +38,54 @@ def query_agent():
     if not message:
         return jsonify({"error": "message is required"}), 400
 
-    if conversation_id is None:
-        conversation = ConversationRepository.create(
-            user_id=user_id, title=MemoryService.build_title(message)
-        )
-    else:
+    conversation = None
+    if conversation_id is not None:
+        try:
+            conversation_id = int(conversation_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "conversation_id must be an integer"}), 400
+
         conversation = ConversationRepository.get_for_user(
-            int(conversation_id), user_id
+            conversation_id, user_id
         )
 
         if conversation is None:
             return jsonify({"error": "conversation not found"}), 404
 
-    history = MemoryService.load_history(conversation)
+    history = MemoryService.load_history(conversation) if conversation else []
 
     try:
         agent = AgentService()
-    except RuntimeError as error:
-        return jsonify(
-            {"error": "agent unavailable", "message": str(error)}
-        ), 503
+    except RuntimeError:
+        logger.warning("Agent service is not configured")
+        return jsonify({"error": "agent unavailable"}), 503
 
     try:
         result = agent.chat(message, history=history)
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
-    except GeminiUnavailableError as error:
+    except GeminiUnavailableError:
         return jsonify(
             {
                 "error": "ai service unavailable",
-                "message": str(error),
                 "retryable": True,
             }
         ), 503
-    except Exception as error:  # noqa: BLE001 - upstream model failure
-        return jsonify(
-            {"error": "agent request failed", "message": str(error)}
-        ), 502
+    except Exception:  # noqa: BLE001 - log upstream failure, return stable error
+        logger.exception("Agent request failed")
+        return jsonify({"error": "agent request failed"}), 502
+
+    if conversation is None:
+        conversation = ConversationRepository.create(
+            user_id=user_id, title=MemoryService.build_title(message)
+        )
 
     presentation = PresentationService.from_tool_calls(result["tool_calls"])
+    tool_calls = _public_tool_calls(result["tool_calls"])
     MemoryService.record_turns(
         conversation,
         result["history"][len(history):],
-        tool_calls=result["tool_calls"],
+        tool_calls=tool_calls,
         presentation=presentation,
     )
 
@@ -77,7 +93,7 @@ def query_agent():
         {
             "data": {
                 "answer": result["response"],
-                "tool_calls": result["tool_calls"],
+                "tool_calls": tool_calls,
                 "presentation": presentation,
                 "conversation_id": conversation.id,
             }

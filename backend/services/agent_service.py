@@ -87,6 +87,8 @@ class AgentService:
             function_calls = response.function_calls or []
 
             if not function_calls:
+                if not response.text or not response.text.strip():
+                    raise RuntimeError("The AI service returned an empty response.")
                 return {
                     "response": response.text,
                     "tool_calls": tool_calls,

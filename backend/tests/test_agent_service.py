@@ -75,6 +75,13 @@ def test_answer_without_tools_is_returned_directly(app):
     assert agent.gemini_service.calls == 1
 
 
+def test_empty_model_response_is_rejected(app):
+    agent = _agent_with([types.Content(role="model", parts=[])])
+
+    with pytest.raises(RuntimeError, match="empty response"):
+        agent.chat("Hello")
+
+
 def test_single_tool_call_is_executed(app):
     """A requested tool runs and its name is reported back."""
     agent = _agent_with(
@@ -130,7 +137,13 @@ def test_chained_tool_calls_across_iterations(app):
 
     result = agent.chat("Where does TA1000 depart from?")
 
-    assert len(result["tool_calls"]) == 3
+    assert [call["tool"] for call in result["tool_calls"]] == [
+        "get_flight_by_number",
+        "get_terminal_status",
+        "get_flights_by_terminal",
+    ]
+    assert result["tool_calls"][0]["arguments"] == {"flight_number": "TA1000"}
+    assert result["tool_calls"][2]["arguments"] == {"terminal_id": 1.0}
     assert agent.gemini_service.calls == 4
     assert not any(call["failed"] for call in result["tool_calls"])
 

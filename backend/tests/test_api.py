@@ -39,6 +39,16 @@ def test_register_and_login(client):
     assert "access_token" in logged_in.get_json()
 
 
+def test_registration_rejects_short_password(client):
+    response = client.post(
+        "/auth/register",
+        json={"username": "ops", "email": "ops@example.com", "password": "short"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "password must be at least 8 characters"
+
+
 def test_login_with_wrong_password_is_rejected(client):
     """Invalid credentials do not return a token."""
     client.post(
@@ -120,6 +130,33 @@ def test_agent_query_returns_the_answer_and_tool_calls(
     assert payload["tool_calls"][0]["tool"] == "get_all_flights"
 
 
+def test_agent_query_does_not_expose_internal_tool_results(
+    client, auth_headers, monkeypatch
+):
+    class ResultAgent:
+        def chat(self, message, history=None):
+            return {
+                "response": "Found it.",
+                "tool_calls": [{
+                    "tool": "get_flight_by_number",
+                    "arguments": {"flight_number": "TA1000"},
+                    "failed": False,
+                    "result": {"flight_number": "TA1000", "status": "delayed"},
+                }],
+                "history": [],
+            }
+
+    monkeypatch.setattr(agent_routes, "AgentService", ResultAgent)
+    response = client.post(
+        "/agent/query", json={"message": "Find TA1000"}, headers=auth_headers
+    )
+    data = response.get_json()["data"]
+
+    assert response.status_code == 200
+    assert "result" not in data["tool_calls"][0]
+    assert data["presentation"]["type"] == "flight_status"
+
+
 def test_agent_query_reports_a_missing_api_key(
     client, auth_headers, monkeypatch
 ):
@@ -136,3 +173,4 @@ def test_agent_query_reports_a_missing_api_key(
     )
 
     assert response.status_code == 503
+    assert "message" not in response.get_json()

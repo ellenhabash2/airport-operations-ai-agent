@@ -182,6 +182,33 @@ def test_an_unknown_conversation_is_rejected(client, auth_headers, monkeypatch):
     assert response.status_code == 404
 
 
+def test_a_malformed_conversation_id_is_rejected(
+    client, auth_headers, monkeypatch
+):
+    monkeypatch.setattr(agent_routes, "AgentService", RecordingAgent)
+
+    response = _ask(client, auth_headers, "Hello", conversation_id="not-an-id")
+
+    assert response.status_code == 400
+    assert Conversation.query.count() == 0
+
+
+def test_a_failed_new_query_does_not_leave_an_empty_conversation(
+    app, client, auth_headers, monkeypatch
+):
+    class FailingAgent:
+        def chat(self, message, history=None):
+            raise RuntimeError("provider details must remain private")
+
+    monkeypatch.setattr(agent_routes, "AgentService", FailingAgent)
+
+    response = _ask(client, auth_headers, "Hello")
+
+    assert response.status_code == 502
+    assert response.get_json() == {"error": "agent request failed"}
+    assert Conversation.query.count() == 0
+
+
 def test_another_users_conversation_is_not_reachable(
     app, client, auth_headers, monkeypatch
 ):
