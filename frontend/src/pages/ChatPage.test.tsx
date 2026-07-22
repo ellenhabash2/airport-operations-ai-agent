@@ -183,7 +183,7 @@ describe("ChatPage submission", () => {
     await user.type(input, "Check PW2018");
     await user.click(screen.getByRole("button", { name: "Send message" }));
 
-    expect(await screen.findByText("AI service unavailable")).toBeVisible();
+    expect(await screen.findByText("The AI service is temporarily unavailable.")).toBeVisible();
     expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
     await user.type(input, "Try another question");
     expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled();

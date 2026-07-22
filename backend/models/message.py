@@ -26,6 +26,7 @@ class Message(db.Model):
     text = db.Column(db.Text, nullable=True)
     payload = db.Column(db.Text, nullable=False)
     tool_calls = db.Column(db.JSON, nullable=True)
+    presentation = db.Column(db.JSON, nullable=True)
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -38,6 +39,7 @@ class Message(db.Model):
             "role": self.role,
             "text": self.text,
             "tool_calls": self.tool_calls or [],
+            "presentation": self.presentation,
             "created_at": self.created_at.isoformat()
             if self.created_at
             else None,

@@ -65,6 +65,7 @@ class MemoryService:
         conversation: Conversation,
         contents: list[types.Content],
         tool_calls: list[dict] | None = None,
+        presentation: dict | None = None,
     ) -> None:
         """
         Persist the turns produced by one exchange.
@@ -95,6 +96,7 @@ class MemoryService:
                     tool_calls=list(tool_calls or [])
                     if index == assistant_index
                     else None,
+                    presentation=presentation if index == assistant_index else None,
                 )
             )
 

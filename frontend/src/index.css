@@ -120,9 +120,23 @@ body::after {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
+
+.chat-markdown > *:first-child { margin-top: 0; }
+.chat-markdown > *:last-child { margin-bottom: 0; }
+.chat-markdown p, .chat-markdown ul, .chat-markdown ol, .chat-markdown pre, .chat-markdown table { margin: 0.65rem 0; }
+.chat-markdown ul { list-style: disc; padding-left: 1.4rem; }
+.chat-markdown ol { list-style: decimal; padding-left: 1.4rem; }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { margin: 1rem 0 0.45rem; color: white; font-weight: 650; }
+.chat-markdown h1 { font-size: 1.25rem; } .chat-markdown h2 { font-size: 1.1rem; } .chat-markdown h3 { font-size: 1rem; }
+.chat-markdown code { border-radius: 0.3rem; background: rgba(0,0,0,.28); padding: .1rem .3rem; font-family: var(--font-mono); font-size: .82em; }
+.chat-markdown pre { max-width: 100%; overflow-x: auto; border: 1px solid rgba(255,255,255,.1); border-radius: .75rem; background: rgba(0,0,0,.3); padding: .8rem; }
+.chat-markdown pre code { background: transparent; padding: 0; }
+.chat-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.chat-markdown th, .chat-markdown td { border: 1px solid rgba(255,255,255,.1); padding: .4rem .6rem; text-align: left; }
 
 button {
   cursor: pointer;

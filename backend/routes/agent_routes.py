@@ -5,6 +5,7 @@ from repositories.conversation_repository import ConversationRepository
 from services.agent_service import AgentService
 from services.gemini_service import GeminiUnavailableError
 from services.memory_service import MemoryService
+from services.presentation_service import PresentationService
 
 agent_bp = Blueprint("agent", __name__)
 
@@ -64,10 +65,12 @@ def query_agent():
             {"error": "agent request failed", "message": str(error)}
         ), 502
 
+    presentation = PresentationService.from_tool_calls(result["tool_calls"])
     MemoryService.record_turns(
         conversation,
         result["history"][len(history):],
         tool_calls=result["tool_calls"],
+        presentation=presentation,
     )
 
     return jsonify(
@@ -75,6 +78,7 @@ def query_agent():
             "data": {
                 "answer": result["response"],
                 "tool_calls": result["tool_calls"],
+                "presentation": presentation,
                 "conversation_id": conversation.id,
             }
         }

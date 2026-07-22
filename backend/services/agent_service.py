@@ -156,6 +156,7 @@ class AgentService:
                 "tool": function_call.name,
                 "arguments": arguments,
                 "failed": failed,
+                "result": result if not failed else None,
             }
 
             if failed:
