@@ -92,7 +92,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    void loadOperations();
+    const request = window.setTimeout(() => void loadOperations(), 0);
+    return () => window.clearTimeout(request);
   }, [loadOperations]);
 
   const activeFlights = flights.filter((flight) =>

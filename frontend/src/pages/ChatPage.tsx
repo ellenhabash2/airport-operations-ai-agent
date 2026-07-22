@@ -118,7 +118,8 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    void loadConversations();
+    const request = window.setTimeout(() => void loadConversations(), 0);
+    return () => window.clearTimeout(request);
   }, [loadConversations]);
 
   useEffect(() => {

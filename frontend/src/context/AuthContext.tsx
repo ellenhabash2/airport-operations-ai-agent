@@ -32,13 +32,8 @@ function readStoredUser(): User | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setUser(readStoredUser());
-    setLoading(false);
-  }, []);
+  const [user, setUser] = useState<User | null>(readStoredUser);
+  const loading = false;
 
   const logout = useCallback(() => {
     setToken(null);
