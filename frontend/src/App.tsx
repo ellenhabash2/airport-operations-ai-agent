@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AuthPage from "./pages/AuthPage";
 import ChatPage from "./pages/ChatPage";
 import HomePage from "./pages/HomePage";
+import OperationsMapPage from "./pages/OperationsMapPage";
 
 export default function App() {
   return (
@@ -15,6 +16,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/operations-map"
+        element={
+          <ProtectedRoute>
+            <OperationsMapPage />
           </ProtectedRoute>
         }
       />

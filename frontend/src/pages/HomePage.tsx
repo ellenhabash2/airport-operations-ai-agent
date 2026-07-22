@@ -7,6 +7,7 @@ import {
   DoorOpen,
   Eye,
   LayoutDashboard,
+  Map,
   Plane,
   RefreshCw,
   Wind,
@@ -165,6 +166,14 @@ export default function HomePage() {
             </span>
 
             <Link
+              to="/operations-map"
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3.5 py-2.5 text-sm text-muted transition-all hover:border-white/5 hover:bg-white/[0.045] hover:text-white"
+            >
+              <Map className="h-4 w-4" />
+              Operations Map
+            </Link>
+
+            <Link
               to="/chat"
               className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3.5 py-2.5 text-sm text-muted transition-all hover:border-white/5 hover:bg-white/[0.045] hover:text-white"
             >
@@ -254,13 +263,22 @@ export default function HomePage() {
           </header>
 
           <main className="px-4 py-6 sm:px-6 lg:px-7 lg:py-7">
-            <section className="mb-6">
-              <h1 className="text-2xl font-bold tracking-[-0.03em] text-white sm:text-3xl">
-                Welcome back, {displayName}
-              </h1>
-              <p className="mt-1.5 text-sm text-muted">
-                Live status across flights, gates, incidents and weather.
-              </p>
+            <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-[-0.03em] text-white sm:text-3xl">
+                  Welcome back, {displayName}
+                </h1>
+                <p className="mt-1.5 text-sm text-muted">
+                  Live status across flights, gates, incidents and weather.
+                </p>
+              </div>
+              <Link
+                to="/operations-map"
+                className="flex w-fit items-center gap-2 rounded-xl border border-cyan/20 bg-cyan/[0.07] px-4 py-2.5 text-xs font-medium text-cyan transition-all hover:-translate-y-0.5 hover:bg-cyan/10"
+              >
+                <Map className="h-4 w-4" />
+                Open operations map
+              </Link>
             </section>
 
             {error && (

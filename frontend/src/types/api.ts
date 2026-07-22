@@ -55,6 +55,23 @@ export interface Gate {
   status: string;
 }
 
+export interface Terminal {
+  id: number;
+  name: string;
+  capacity: number;
+  total_gates: number;
+  available_gates: number;
+  available_gate_numbers: string[];
+}
+
+export interface Runway {
+  id: number;
+  runway_code: string;
+  status: string;
+  length: number;
+  closure_reason?: string | null;
+}
+
 export interface Incident {
   id: number;
   title: string;
