@@ -67,6 +67,33 @@ To preview that build locally:
 npm run preview
 ```
 
+## Testing
+
+The frontend test suite uses Vitest, jsdom, React Testing Library, and
+`@testing-library/user-event`. Run the suite in watch mode while developing:
+
+```bash
+cd frontend
+npm test
+```
+
+Run it once, as used by CI and pre-commit validation:
+
+```bash
+npm run test:run
+```
+
+Tests live beside the components and pages they cover. Shared fixtures and
+render helpers are in `src/test/`. The global setup supplies browser-only
+APIs needed by the UI and replaces the API client methods with Vitest mocks,
+so tests remain deterministic and never call the backend or external services.
+
+The suite favors user-visible behavior and accessible queries: rendering
+stored chat history and tool calls, submitting prompts, authentication,
+dashboard states, airport map interactions, and the flight details drawer.
+Use controlled promises for loading states and explicit rejected promises for
+error or partial-failure states.
+
 ## Folder Overview
 
 ```text
@@ -75,6 +102,7 @@ src/
 ├── components/   Shared route and UI components
 ├── context/      Authentication state
 ├── pages/        Login, registration, dashboard and chat views
+├── test/         Shared test setup, fixtures and render helpers
 ├── types/        API response types
 ├── App.tsx       Application routes
 └── main.tsx      React entry point
