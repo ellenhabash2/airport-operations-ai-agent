@@ -54,6 +54,8 @@ function ToolCallList({ toolCalls }: { toolCalls: ToolCall[] }) {
       {toolCalls.map((call, index) => (
         <div
           key={`${call.tool}-${index}`}
+          role="status"
+          aria-label={call.failed ? "Tool failed" : "Tool succeeded"}
           className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
             call.failed
               ? "border-alert/25 bg-alert/10"
