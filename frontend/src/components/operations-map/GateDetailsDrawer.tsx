@@ -22,12 +22,14 @@ interface GateDetailsDrawerProps {
   gate: Gate;
   flight?: Flight;
   onClose: () => void;
+  onSelectFlight: (flight: Flight) => void;
 }
 
 export default function GateDetailsDrawer({
   gate,
   flight,
   onClose,
+  onSelectFlight,
 }: GateDetailsDrawerProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -54,7 +56,6 @@ export default function GateDetailsDrawer({
 
   const details = flight
     ? [
-        ["Assigned flight", flight.flight_number],
         ["Airline", flight.airline_name ?? "Not available"],
         [
           "Aircraft",
@@ -136,17 +137,32 @@ export default function GateDetailsDrawer({
               </p>
             </div>
           ) : (
-            <dl className="mt-5 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.025] px-4">
-              {details.map(([label, value]) => (
-                <div
-                  key={label}
-                  className="grid gap-1 py-3.5 sm:grid-cols-[145px_1fr] sm:gap-4"
-                >
-                  <dt className="text-xs text-muted">{label}</dt>
-                  <dd className="text-sm text-white sm:text-right">{value}</dd>
-                </div>
-              ))}
-            </dl>
+            <>
+              <button
+                type="button"
+                onClick={() => onSelectFlight(flight)}
+                className="mt-5 flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan/20 bg-cyan/[0.06] px-4 py-3 text-left transition-all hover:border-cyan/35 hover:bg-cyan/10"
+              >
+                <span>
+                  <span className="block text-xs text-muted">Assigned flight</span>
+                  <span className="mt-1 block font-mono text-base font-semibold text-white">
+                    {flight.flight_number}
+                  </span>
+                </span>
+                <Plane className="h-5 w-5 text-cyan" />
+              </button>
+              <dl className="mt-3 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.025] px-4">
+                {details.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="grid gap-1 py-3.5 sm:grid-cols-[145px_1fr] sm:gap-4"
+                  >
+                    <dt className="text-xs text-muted">{label}</dt>
+                    <dd className="text-sm text-white sm:text-right">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
           )}
         </div>
       </aside>

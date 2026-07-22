@@ -45,6 +45,12 @@ export interface Flight {
   destination: string;
   departure_time: string | null;
   arrival_time: string | null;
+  estimated_departure_time?: string | null;
+  actual_departure_time?: string | null;
+  estimated_arrival_time?: string | null;
+  actual_arrival_time?: string | null;
+  delay_duration_minutes?: number | null;
+  delay_reason?: string | null;
   status: string;
 }
 
@@ -78,6 +84,7 @@ export interface Incident {
   description: string;
   severity: string;
   location: string;
+  status?: string | null;
   created_at: string | null;
 }
 
