@@ -8,12 +8,14 @@ interface QuickActionsSectionProps {
   flight: Flight;
   hasIncident: boolean;
   onViewIncident: () => void;
+  onViewGate: () => void;
 }
 
 export default function QuickActionsSection({
   flight,
   hasIncident,
   onViewIncident,
+  onViewGate,
 }: QuickActionsSectionProps) {
   const [copied, setCopied] = useState(false);
   const prompt = `Explain the current operational status of flight ${flight.flight_number}.`;
@@ -41,12 +43,13 @@ export default function QuickActionsSection({
           <Bot className="h-4 w-4 shrink-0" /> Ask AeroMind
         </Link>
         {flight.gate_number ? (
-          <Link
-            to={`/operations-map?gate=${encodeURIComponent(flight.gate_number)}`}
+          <button
+            type="button"
+            onClick={onViewGate}
             className={actionClass}
           >
             <DoorOpen className="h-4 w-4 shrink-0" /> View assigned gate
-          </Link>
+          </button>
         ) : (
           <span className={`${actionClass} cursor-not-allowed opacity-50`}>
             <DoorOpen className="h-4 w-4 shrink-0" /> No assigned gate

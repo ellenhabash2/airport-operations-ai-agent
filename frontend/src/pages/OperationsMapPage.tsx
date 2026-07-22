@@ -135,7 +135,7 @@ export default function OperationsMapPage() {
   useEffect(() => {
     const gateNumber = searchParams.get("gate");
 
-    if (!gateNumber || gates.length === 0) {
+    if (!gateNumber || gates.length === 0 || selectedFlightDetails) {
       return;
     }
 
@@ -147,7 +147,7 @@ export default function OperationsMapPage() {
     }, 0);
 
     return () => window.clearTimeout(request);
-  }, [gates, searchParams]);
+  }, [gates, searchParams, selectedFlightDetails]);
 
   const flightsByGate = useMemo(() => {
     const sortedFlights = flights

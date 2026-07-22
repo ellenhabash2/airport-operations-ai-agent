@@ -1,5 +1,6 @@
 import { AlertTriangle, LoaderCircle, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "../../api/client";
 import type {
@@ -49,6 +50,7 @@ export default function FlightDetailsDrawer({
   initialFlight,
   onClose,
 }: FlightDetailsDrawerProps) {
+  const navigate = useNavigate();
   const [flight, setFlight] = useState<Flight | null>(initialFlight ?? null);
   const [gates, setGates] = useState<Gate[]>([]);
   const [runways, setRunways] = useState<Runway[]>([]);
@@ -283,6 +285,17 @@ export default function FlightDetailsDrawer({
                 onViewIncident={() => {
                   incidentSectionRef.current?.scrollIntoView({ behavior: "smooth" });
                   incidentSectionRef.current?.focus();
+                }}
+                onViewGate={() => {
+                  if (!flight.gate_number) {
+                    return;
+                  }
+
+                  const gatePath = `/operations-map?gate=${encodeURIComponent(
+                    flight.gate_number,
+                  )}`;
+                  onClose();
+                  navigate(gatePath);
                 }}
               />
             </div>
