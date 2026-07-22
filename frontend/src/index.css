@@ -220,6 +220,16 @@ button:disabled {
   }
 }
 
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .animate-float-glow {
   animation: float-glow 7s ease-in-out infinite;
 }
@@ -230,6 +240,10 @@ button:disabled {
 
 .animate-drawer-in {
   animation: drawer-in 180ms ease-out both;
+}
+
+.animate-overlay-in {
+  animation: overlay-in 180ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
