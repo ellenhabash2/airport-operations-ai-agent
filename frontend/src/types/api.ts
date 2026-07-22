@@ -15,23 +15,6 @@ export interface RegisterResponse {
   user: User;
 }
 
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  created_at: string | null;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  user: User;
-}
-
-export interface RegisterResponse {
-  message: string;
-  user: User;
-}
-
 export interface Flight {
   id: number;
   flight_number: string;
@@ -107,7 +90,6 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
   failed: boolean;
   error?: string;
-  result?: unknown;
 }
 
 export interface StructuredPresentation {

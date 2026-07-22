@@ -15,6 +15,8 @@ import {
 
 import { api, ApiError } from "../api/client";
 import FlightDetailsDrawer from "../components/flight-details/FlightDetailsDrawer";
+import DateTimeDisplay from "../components/common/DateTimeDisplay";
+import StatusBadge from "../components/common/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import type {
   Flight,
@@ -26,26 +28,6 @@ import type {
 
 const IN_PROGRESS_STATUSES = ["scheduled", "boarding", "departed"];
 const URGENT_SEVERITIES = ["high", "critical"];
-
-const statusStyles: Record<string, string> = {
-  scheduled: "bg-cyan/10 text-cyan",
-  boarding: "bg-accent/15 text-accent",
-  departed: "bg-clear/10 text-clear",
-  arrived: "bg-clear/10 text-clear",
-  delayed: "bg-warning/10 text-warning",
-  cancelled: "bg-alert/10 text-alert",
-};
-
-function formatTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-
-  return new Date(value).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function capitalise(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -272,7 +254,7 @@ export default function HomePage() {
                   Welcome back, {displayName}
                 </h1>
                 <p className="mt-1.5 text-sm text-muted">
-                  Live status across flights, gates, incidents and weather.
+                  Current demo operations across flights, gates, incidents and weather.
                 </p>
               </div>
               <Link
@@ -386,17 +368,10 @@ export default function HomePage() {
                               {flight.destination}
                             </td>
                             <td className="px-3 py-4">
-                              <span
-                                className={`rounded-md px-2 py-1 text-xs font-medium ${
-                                  statusStyles[flight.status] ??
-                                  "bg-white/10 text-muted"
-                                }`}
-                              >
-                                {capitalise(flight.status)}
-                              </span>
+                              <StatusBadge status={flight.status} />
                             </td>
                             <td className="px-3 py-4 font-mono text-muted-light">
-                              {formatTime(flight.departure_time)}
+                              <DateTimeDisplay value={flight.departure_time} />
                             </td>
                             <td className="px-5 py-4 font-mono text-muted-light">
                               {flight.gate_number ?? "Unassigned"}
