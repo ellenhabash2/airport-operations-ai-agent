@@ -155,6 +155,13 @@ export default function FlightDetailsDrawer({
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      const focusIsInside = drawerRef.current.contains(document.activeElement);
+
+      if (!focusIsInside) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

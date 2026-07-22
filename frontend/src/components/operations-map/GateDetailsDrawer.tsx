@@ -22,7 +22,7 @@ interface GateDetailsDrawerProps {
   gate: Gate;
   flight?: Flight;
   onClose: () => void;
-  onSelectFlight?: (flight: Flight) => void;
+  onSelectFlight: (flight: Flight) => void;
 }
 
 export default function GateDetailsDrawer({
@@ -140,7 +140,7 @@ export default function GateDetailsDrawer({
             <>
               <button
                 type="button"
-                onClick={() => onSelectFlight?.(flight)}
+                onClick={() => onSelectFlight(flight)}
                 className="mt-5 flex w-full items-center justify-between gap-4 rounded-2xl border border-cyan/20 bg-cyan/[0.06] px-4 py-3 text-left transition-all hover:border-cyan/35 hover:bg-cyan/10"
               >
                 <span>
