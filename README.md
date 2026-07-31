@@ -1,7 +1,8 @@
-Names:
-Roaa Zoabi 
-Marwa Abd Alrzaq
-Ellen Habash 
+## Authors
+
+- Roaa Zoabi
+- Marwa Abd Alrzaq
+- Ellen Habash
 
 # AeroMind - Airport Operations AI Agent
 
