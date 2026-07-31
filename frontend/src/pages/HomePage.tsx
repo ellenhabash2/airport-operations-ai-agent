@@ -45,6 +45,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const displayName = user?.username?.trim() || "Operator";
 
@@ -326,7 +327,7 @@ export default function HomePage() {
 
             <section className="mt-5 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
               <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div className="border-b border-white/10 px-5 py-4">
                   <div>
                     <p className="text-sm font-semibold text-white">
                       Flight status
@@ -337,7 +338,8 @@ export default function HomePage() {
                         : `Showing ${Math.min(filteredFlights.length, 8)} of ${flights.length}`}
                     </p>
                   </div>
-                  <div className="relative w-64">
+                  <div className="mt-5 flex justify-center">
+                    <div className="relative w-full max-w-md">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
 
                       <input
@@ -347,8 +349,29 @@ export default function HomePage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2 pl-10 pr-3 text-sm text-white placeholder:text-muted focus:border-cyan/40 focus:outline-none"
                       />
+                    </div>
                   </div>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                      {["all", "scheduled", "boarding", "delayed", "arrived", "cancelled"].map(
+                        (status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => setStatusFilter(status)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                              statusFilter === status
+                                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                : "bg-white/5 text-muted hover:bg-white/10"
+                            }`}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </button>
+                        )
+                      )}
+                  </div>
+
                 </div>
+
 
                 {!loading && filteredFlights.length === 0 ? (
                   <p className="px-5 py-10 text-center text-sm text-muted">
