@@ -131,6 +131,20 @@ export default function HomePage() {
     },
   ];
 
+  const filteredFlights = flights.filter((flight) => {
+  const query = searchTerm.trim().toLowerCase();
+
+  if (!query) {
+    return true;
+  }
+
+  return (
+    flight.flight_number.toLowerCase().includes(query) ||
+    flight.origin.toLowerCase().includes(query) ||
+    flight.destination.toLowerCase().includes(query)
+  );
+  });
+
   return (
     <div className="min-h-screen px-3 py-3 sm:px-5 sm:py-5">
       <div className="glass-panel mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1540px] overflow-hidden rounded-[28px] sm:min-h-[calc(100vh-2.5rem)]">
@@ -320,7 +334,7 @@ export default function HomePage() {
                     <p className="mt-0.5 text-xs text-muted">
                       {loading
                         ? "Loading flights…"
-                        : `Showing ${Math.min(flights.length, 8)} of ${flights.length}`}
+                        : `Showing ${Math.min(filteredFlights.length, 8)} of ${flights.length}`}
                     </p>
                   </div>
                   <div className="relative w-64">
@@ -336,10 +350,11 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {!loading && flights.length === 0 ? (
+                {!loading && filteredFlights.length === 0 ? (
                   <p className="px-5 py-10 text-center text-sm text-muted">
-                    No flights in the database yet. Run the seed script to load
-                    sample operations data.
+                    {searchTerm.trim()
+                        ? "No matching flights found."
+                        : "No flights in the database yet. Run the seed script to load sample operations data."}
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -356,7 +371,7 @@ export default function HomePage() {
                       </thead>
 
                       <tbody>
-                        {flights.slice(0, 8).map((flight) => (
+                        {filteredFlights.slice(0, 8).map((flight) => (
                           <tr
                             key={flight.id}
                             role="button"
