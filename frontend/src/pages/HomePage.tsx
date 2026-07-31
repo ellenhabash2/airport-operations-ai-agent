@@ -132,19 +132,21 @@ export default function HomePage() {
     },
   ];
 
-  const filteredFlights = flights.filter((flight) => {
+const filteredFlights = flights.filter((flight) => {
   const query = searchTerm.trim().toLowerCase();
 
-  if (!query) {
-    return true;
-  }
-
-  return (
+  const matchesSearch =
+    !query ||
     flight.flight_number.toLowerCase().includes(query) ||
     flight.origin.toLowerCase().includes(query) ||
-    flight.destination.toLowerCase().includes(query)
-  );
-  });
+    flight.destination.toLowerCase().includes(query);
+
+  const matchesStatus =
+    statusFilter === "all" ||
+    flight.status.toLowerCase() === statusFilter;
+
+  return matchesSearch && matchesStatus;
+});
 
   return (
     <div className="min-h-screen px-3 py-3 sm:px-5 sm:py-5">
