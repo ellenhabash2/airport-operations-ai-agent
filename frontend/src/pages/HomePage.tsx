@@ -10,6 +10,7 @@ import {
   Map,
   Plane,
   RefreshCw,
+  Search,
   Wind,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const displayName = user?.username?.trim() || "Operator";
 
@@ -320,6 +322,17 @@ export default function HomePage() {
                         ? "Loading flights…"
                         : `Showing ${Math.min(flights.length, 8)} of ${flights.length}`}
                     </p>
+                  </div>
+                  <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+
+                      <input
+                        type="text"
+                        placeholder="Search flight..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2 pl-10 pr-3 text-sm text-white placeholder:text-muted focus:border-cyan/40 focus:outline-none"
+                      />
                   </div>
                 </div>
 
