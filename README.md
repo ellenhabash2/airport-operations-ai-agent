@@ -1,3 +1,8 @@
+Names & IDs :
+Roaa Zoabi 324095041
+Marwa Abd Alrzaq 325604197
+Ellen Habash  210002721
+
 # AeroMind - Airport Operations AI Agent
 
 AeroMind is a university final project: an airport operations backend with an
