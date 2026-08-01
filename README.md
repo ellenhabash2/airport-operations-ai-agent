@@ -250,7 +250,7 @@ curl http://localhost:5000/health
 - `JWT_SECRET_KEY`: secret used to sign JWT access tokens
 - `FLASK_DEBUG`: set to `1` to enable the reloader and debug output
 - `GEMINI_API_KEY`: API key used by the agent, required for `/agent/query`
-- `GEMINI_MODEL`: model name, defaults to `gemini-3.5-flash`
+- `GEMINI_MODEL`: model name, defaults to `gemini-3.1-flash-lite`
 - `VITE_API_URL`: backend base URL used by the React frontend; set it in
   `frontend/.env` (defaults to `http://localhost:5000`)
 
@@ -406,6 +406,19 @@ three times with a growing delay before giving up. If every attempt fails,
 `/agent/query` answers `503` with `"retryable": true` rather than a generic
 server error. Permanent errors, such as a malformed request, are not
 retried.
+
+### Model errors
+
+If `/agent/query` fails with a `404`, the configured `GEMINI_MODEL` is not
+available for your API key. List the models your key supports and set
+`GEMINI_MODEL` in `.env` to any available flash model:
+
+```bash
+curl "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
+```
+
+Changes to `.env` require `docker compose up -d --build` for the API container
+to pick them up.
 
 ## API Endpoints
 
