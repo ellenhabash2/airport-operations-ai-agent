@@ -12,7 +12,7 @@ from google.genai import errors, types
 from services.tool_registry import TOOL_SCHEMAS
 
 
-DEFAULT_MODEL = "gemini-3.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
 # Status codes worth retrying: rate limiting and transient server errors.
 TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})

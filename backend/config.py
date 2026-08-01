@@ -14,7 +14,7 @@ class Config:
     JSON_SORT_KEYS = False
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
     CORS_ORIGINS = [
         origin.strip()
         for origin in os.getenv(
